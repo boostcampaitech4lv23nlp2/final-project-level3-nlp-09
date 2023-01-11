@@ -1,0 +1,17 @@
+{
+    "vision_cfg": {
+        "output_dim": 768,
+        "image_size": 224,
+        "layers": 24,
+        "width": 1024,
+        "patch_size": 14
+    },
+    "text_cfg": {
+        "output_dim": 768,
+        "context_length": 77,
+        "vocab_size": 32000,
+        "width": 512,
+        "heads": 8,
+        "layers": 12
+    }
+}

@@ -1,29 +1,38 @@
 import argparse
+import json
 
-import open_clip
-
-from dataset import FoodDataset
-from trainer import Trainer
+from src.dataset import FoodImageDataset
+from src.model import build_model
+from src.preprocess import image_transform
+from src.tokenizer import get_tokenizer
+from src.trainer import Trainer
 
 
 def main(args):
 
-    model, _, preprocess = open_clip.create_model_and_transforms("ViT-B-32-quickgelu", pretrained="laion400m_e32")
-    tokenizer = open_clip.get_tokenizer("ViT-B-32-quickgelu")
-    dataset = FoodDataset(preprocess)
-    train_dataset = dataset.get_train_dataset()
-    trainer = Trainer(args, model, tokenizer, train_dataset)
+    with open("src/model_configs/baseline.json") as f:
+        configs = json.load(f)
+    text_cfg = configs["text_cfg"]
+    vision_cfg = configs["vision_cfg"]
+
+    preprocess = image_transform(vision_cfg["image_size"], is_train=True)
+
+    model = build_model(vision_cfg, text_cfg)
+    dataset = FoodImageDataset(preprocess, mode="train")
+    tokenizer = get_tokenizer()
+    trainer = Trainer(args, model, tokenizer, dataset)
     if args.do_train:
         trainer.train()
     if args.do_eval:
-        pass
+        trainer.evaluate()
 
 
-# print("Label probs:", text_probs)  # prints: [[1., 0., 0.]]
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=256, type=int)
-    parser.add_argument("--num_train_epochs", default=5, type=int)
+    parser.add_argument("--batch_size", default=32, type=int)
+    parser.add_argument("--learning_rate", default=5e-4, type=float)
+    parser.add_argument("--eval_batch_size", default=64, type=int)
+    parser.add_argument("--num_train_epochs", default=30, type=int)
     parser.add_argument("--do_train", default=True, type=bool)
     parser.add_argument("--do_eval", default=False, type=bool)
     parser.add_argument("--labels_file_path", default="class_labels.json", type=str)
