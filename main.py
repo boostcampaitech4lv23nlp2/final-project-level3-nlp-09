@@ -36,6 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--do_train", default=True, type=bool)
     parser.add_argument("--do_eval", default=False, type=bool)
     parser.add_argument("--labels_file_path", default="class_labels.json", type=str)
+    parser.add_argument("--do_wandb", default=True, type=bool)
     args = parser.parse_args()
 
     main(args)
