@@ -6,16 +6,18 @@ from torch.utils.data import Dataset
 
 
 class FoodImageDataset(Dataset):
-    def __init__(self, transforms, mode="train"):
-        self.data_path = "data"
-        self.dataset_dir = "train"
-        self.labels_file_name = "labels.json"
-        self.train_file_name = "aihub_1.0_43_0.3_train_crop.json"
-        self.test_file_name = "aihub_1.0_43_0.3_test_crop.json"
+    def __init__(self, args, transforms, mode="train"):
 
-        self.labels_file_path = os.path.join(self.data_path, self.labels_file_name)
-        self.train_file_path = os.path.join(self.data_path, self.train_file_name)
-        self.test_file_path = os.path.join(self.data_path, self.test_file_name)
+        self.args = args
+        self.dataset_path = self.args.dataset_path
+        self.dataset_mode = "train" if mode == "train" else "test"
+        self.labels_info_file_name = self.args.labels_info_file_name
+        self.train_info_file_name = self.args.train_info_file_name
+        self.test_info_file_name = self.args.test_info_file_name
+
+        self.labels_file_path = os.path.join(self.dataset_path, self.labels_info_file_name)
+        self.train_file_path = os.path.join(self.dataset_path, self.train_info_file_name)
+        self.test_file_path = os.path.join(self.dataset_path, self.test_info_file_name)
 
         self.label_data = None
         self.train_data = None
@@ -62,7 +64,7 @@ class FoodImageDataset(Dataset):
         text_id = self.data[idx]["category_id"]
         text = self.id_to_text_dict[text_id]
         file_name = os.path.split(self.data[idx]["file_name"])[-1]
-        file_path = os.path.join(self.data_path, self.dataset_dir, file_name)
+        file_path = os.path.join(self.dataset_path, self.dataset_mode, file_name)
         image = Image.open(file_path)
         image = self.transforms(image)
         return text, image

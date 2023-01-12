@@ -1,10 +1,12 @@
+import numpy as np
+
 import json
 import os
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, SequentialSampler
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from tqdm import tqdm
 
 from src.loss import ClipLoss
@@ -20,12 +22,6 @@ class Trainer(object):
         self.train_dataset = train_dataset
         self.valid_dataset = valid_dataset
         self.test_dataset = test_dataset
-
-        with open(args.labels_file_path, "r") as f:
-            json_data = json.load(f)
-
-        self.id_class_dict = {v: k for k, v in json_data.items()}
-        self.label_list = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model.to(self.device)
 
@@ -68,23 +64,8 @@ class Trainer(object):
             train_loss /= step
             print(f"epoch: {epoch} train loss: {train_loss}")
 
-            if self.args.save_logs:
-                checkpoint_dict = {
-                    "epoch": epoch,
-                    "state_dict": self.model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                }
-                #                if scaler is not None:
-                #                    checkpoint_dict["scaler"] = scaler.state_dict()
-
-                if epoch + 1 == self.args.num_train_epochs or (
-                    self.args.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
-                ):
-                    torch.save(
-                        checkpoint_dict,
-                        os.path.join(self.args.checkpoint_path, f"epoch_{epoch}.pt"),
-                    )
-                    print(f"checkpoint 'epoch_{epoch}.pt' saved")
+            if self.args.val_frequency > 0 and (epoch + 1) % self.args.val_frequency == 0:
+                self.evaluate(mode="valid")
 
     def evaluate(self, mode):
         if mode == "train":
@@ -94,26 +75,68 @@ class Trainer(object):
         elif mode == "test":
             dataset = self.test_dataset
         eval_sampler = SequentialSampler(dataset)
-        eval_dataloader = DataLoader(dataset, sampler=eval_sampler, batch_size=self.args.eval_batch_size)
+        metrics = {}
+        self.model.eval()
+        eval_dataloader = DataLoader(dataset, self.args.eval_batch_size, sampler=eval_sampler)
+
+        all_image_features, all_text_features = [], []
+        cumulative_loss = 0.0
+        num_samples = 0
+
         pbar = tqdm(eval_dataloader, leave=False)
-        step = 0
-        eval_loss = 0
-        loss_img = nn.CrossEntropyLoss()
-        loss_text = nn.CrossEntropyLoss()
-        for batch in pbar:
-            self.model.eval()
-            inputs = batch["image"].to(self.device, dtype=torch.float32)
-            labels = batch["label"]
-            labels = self.tokenizer([self.id_class_dict[id.item()] for id in labels]).to(self.device)
-            image_features = self.model.encode_image(inputs)
-            text_features = self.model.encode_text(labels)
-            ground_truth = torch.arange(len(inputs)).to(self.device)
-            loss = (loss_img(image_features, ground_truth) + loss_text(text_features, ground_truth)) / 2
-            eval_loss += loss.item()
-            step += 1
-            pbar.set_description(f"evaluation loss: {loss.item()}", refresh=True)
-        eval_loss /= step
-        print(f"eval loss: {eval_loss}")
+
+        with torch.no_grad():
+            for texts, images in pbar:
+                images = images.to(self.device, dtype=torch.float32)
+                texts = self.tokenizer(texts).to(self.device)
+                with torch.cuda.amp.autocast():
+                    image_features = self.model.encode_image(images)
+                    text_features = self.model.encode_text(texts)
+                    logit_scale = self.model.logit_scale.exp()
+
+                    all_image_features.append(image_features)
+                    all_text_features.append(text_features)
+
+                    image_features = image_features / image_features.norm(dim=1, keepdim=True)
+                    text_features = text_features / text_features.norm(dim=1, keepdim=True)
+
+                    logits_per_image = logit_scale * image_features @ text_features.t()
+                    logits_per_text = logits_per_image.t()
+                    batch_size = images.shape[0]
+                    labels = torch.arange(batch_size, device=self.device).long()
+                    total_loss = (
+                        F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)
+                    ) / 2
+                cumulative_loss += total_loss * batch_size
+                num_samples += batch_size
+                pbar.set_description(f"validation loss: {total_loss.item()}", refresh=True)
+            val_metrics = self.get_metrics(
+                image_features=torch.cat(all_image_features),
+                text_features=torch.cat(all_text_features),
+                logit_scale=logit_scale,
+            )
+            loss = cumulative_loss / num_samples
+            print(f"validation loss: {loss}")
+            metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
+
+    def get_metrics(self, image_features, text_features, logit_scale):
+        metrics = {}
+        logits_per_image = logit_scale * image_features @ text_features.t()
+        logits_per_text = logits_per_image.t()
+
+        logits = {"image_to_text": logits_per_image, "text_to_image": logits_per_text}
+        ground_truth = torch.arange(len(text_features)).view(-1, 1).to(self.device)
+
+        for name, logit in logits.items():
+            ranking = torch.argsort(logit, descending=True)
+            preds = torch.where(ranking == ground_truth)[1]
+            preds = preds.detach().cpu().numpy()
+            metrics[f"{name}_mean_rank"] = preds.mean() + 1
+            metrics[f"{name}_median_rank"] = np.floor(np.median(preds)) + 1
+            for k in [1, 5, 10]:
+                metrics[f"{name}_R@{k}"] = np.mean(preds < k)
+
+        return metrics
 
     def save_model(self):
         pass
