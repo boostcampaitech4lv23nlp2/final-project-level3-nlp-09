@@ -28,7 +28,9 @@ class Trainer(object):
 
     def train(self):
         train_sampler = RandomSampler(self.train_dataset)
-        train_dataloader = DataLoader(self.train_dataset, self.args.batch_size, sampler=train_sampler)
+        train_dataloader = DataLoader(
+            self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
+        )
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         loss_func = ClipLoss()
 
