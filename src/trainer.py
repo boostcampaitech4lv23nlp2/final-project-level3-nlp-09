@@ -31,10 +31,10 @@ class Trainer(object):
 
     def train(self):
         train_sampler = ContrastiveSampler(self.train_dataset)
-        total_steps = len(train_dataloader) * self.args.num_train_epochs
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
+        total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         scheduler = cosine_lr(optimizer, self.args.learning_rate, self.args.warmup, total_steps)
         loss_func = ClipLoss()
