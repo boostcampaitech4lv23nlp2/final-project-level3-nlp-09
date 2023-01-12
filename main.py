@@ -12,27 +12,22 @@ from src.trainer import Trainer
 
 def main(args):
 
+    with open("src/model_configs/baseline.json") as f:
+        configs = json.load(f)
+    text_cfg = configs["text_cfg"]
+    vision_cfg = configs["vision_cfg"]
+
+    preprocess = image_transform(vision_cfg["image_size"], is_train=True)
+
+    model = build_model(vision_cfg, text_cfg)
     if args.resume is not None:
         checkpoint = torch.load(args.resume, map_location="cpu")
-        if "epoch" in checkpoint:
-            start_epoch = checkpoint["epoch"]
-            model = checkpoint["state_dict"]
-            #    if scaler is not None and 'scaler' in checkpoint:
-            #        scaler.load_state_dict(checkpoint['scaler'])
-
-            print(f"=> resuming checkpoint '{args.resume}' (epoch {start_epoch})")
-
-    else:
-        with open("src/model_configs/baseline.json") as f:
-            configs = json.load(f)
-        text_cfg = configs["text_cfg"]
-        vision_cfg = configs["vision_cfg"]
-
-        preprocess = image_transform(vision_cfg["image_size"], is_train=True)
-
-        model = build_model(vision_cfg, text_cfg)
-        dataset = FoodImageDataset(preprocess, mode="train")
-        tokenizer = get_tokenizer()
+        model.load_state_dict(checkpoint["state_dict"])
+        # if scaler is not None and 'scaler' in checkpoint:
+        #    scaler.load_state_dict(checkpoint['scaler'])
+        print(f"=> from resuming checkpoint '{args.resume}' ")
+    dataset = FoodImageDataset(preprocess, mode="train")
+    tokenizer = get_tokenizer()
     trainer = Trainer(args, model, tokenizer, dataset)
     if args.do_train:
         trainer.train()
@@ -51,13 +46,8 @@ if __name__ == "__main__":
     parser.add_argument("--labels_file_path", default="class_labels.json", type=str)
     parser.add_argument("--save_logs", default=True, type=bool)
     parser.add_argument("--save_frequency", default=5, type=int)
-    parser.add_argument("--checkpoint_path", default="./output", type=str)
-    parser.add_argument(
-        "--resume",
-        default=None,
-        type=str,
-        help="path to latest checkpoint (default: None)",
-    )
+    parser.add_argument("--checkpoint_path", default="src/output", type=str)
+    parser.add_argument("--resume", default=None, type=str, help="path to latest checkpoint (default: None)")
     args = parser.parse_args()
 
     main(args)
