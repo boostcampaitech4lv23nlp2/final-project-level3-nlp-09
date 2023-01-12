@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import wandb
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from tqdm import tqdm
 
+import wandb
 from src.loss import ClipLoss
 
 
@@ -31,13 +31,17 @@ class Trainer(object):
     def train(self):
         if self.args.do_wandb:
             kor_time = (datetime.now() + timedelta(hours=9)).strftime("%m%d%H%M")
-            name = str(self.args.num_train_epochs) + "_" + str(self.args.batch_size) + "_" + kor_time
-            wandb.init(project="FOOD CLIP", entity="ecl-mlstudy", name=name)
-            wandb.config = {
-                "learning_rate": self.args.learning_rate,
-                "epochs": self.args.num_train_epochs,
-                "batch_size": self.args.batch_size,
-            }
+            name = kor_time + "_epochs-" + str(self.args.num_train_epochs) + "_batch-" + str(self.args.batch_size)
+            wandb.init(
+                project="FOOD CLIP",
+                entity="ecl-mlstudy",
+                name=name,
+                config={
+                    "learning_rate": self.args.learning_rate,
+                    "epochs": self.args.num_train_epochs,
+                    "batch_size": self.args.batch_size,
+                },
+            )
 
         train_sampler = RandomSampler(self.train_dataset)
         train_dataloader = DataLoader(self.train_dataset, self.args.batch_size, sampler=train_sampler)
@@ -67,7 +71,7 @@ class Trainer(object):
                 pbar.set_description(f"epoch: {epoch}/ train loss: {total_loss.item()}", refresh=True)
 
                 if self.args.do_wandb:
-                    wandb.log({"train_loss": total_loss.item(), "train_step": step, "train_epoch": epoch})
+                    wandb.log({"train_loss": total_loss.item(), "train_epoch": epoch})
             train_loss /= step
             print(f"epoch: {epoch} train loss: {train_loss}")
 

@@ -8,9 +8,9 @@ from torch.utils.data import Dataset
 class FoodImageDataset(Dataset):
     def __init__(self, transforms, mode="train"):
         self.data_path = "data"
-        self.dataset_dir = "train"
+        self.dataset_dir = "small_train"
         self.labels_file_name = "labels.json"
-        self.train_file_name = "aihub_1.0_43_0.3_train_crop.json"
+        self.train_file_name = "aihub_1.0_43_0.3_train_crop_crop.json"
         self.test_file_name = "aihub_1.0_43_0.3_test_crop.json"
 
         self.labels_file_path = os.path.join(self.data_path, self.labels_file_name)
