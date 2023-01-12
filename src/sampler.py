@@ -1,13 +1,9 @@
-import math
-import torch
 import numpy as np
-
-from functools import reduce
-from collections import Counter
+import torch
 from torch.utils.data.sampler import Sampler
 
-class ContrastiveSampler(Sampler):
 
+class ContrastiveSampler(Sampler):
     def __init__(self, dset, shuffle: bool = True, seed: int = 42, oversample=False):
         self.dset = dset
         self.shuffle = shuffle
