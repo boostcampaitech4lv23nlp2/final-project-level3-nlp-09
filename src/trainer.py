@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -82,6 +83,24 @@ class Trainer(object):
 
             if self.args.val_frequency > 0 and (epoch + 1) % self.args.val_frequency == 0:
                 self.evaluate(mode="valid")
+
+            if self.args.save_logs:
+                checkpoint_dict = {
+                    "epoch": epoch,
+                    "state_dict": self.model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                }
+                #                if scaler is not None:
+                #                    checkpoint_dict["scaler"] = scaler.state_dict()
+
+                if epoch + 1 == self.args.num_train_epochs or (
+                    self.args.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
+                ):
+                    torch.save(
+                        checkpoint_dict,
+                        os.path.join(self.args.checkpoint_path, f"epoch_{epoch}.pt"),
+                    )
+                    print(f"checkpoint 'epoch_{epoch}.pt' saved")
 
     def evaluate(self, mode):
         if mode == "train":
