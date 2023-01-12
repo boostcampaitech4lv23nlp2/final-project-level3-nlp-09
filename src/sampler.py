@@ -57,7 +57,7 @@ class ContrastiveSampler(Sampler):
             indicies.append(index)
 
         assert len(indicies) == len(self.dset)
-        assert len(self.cls) == len(set([self.dset.samples[idx][-1] for idx in indicies]))
+        assert len(self.cls) == len(set([self.dset.labels[idx]["id"] for idx in indicies]))
         return iter(indicies)
 
     def __len__(self):
