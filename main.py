@@ -36,6 +36,9 @@ if __name__ == "__main__":
     parser.add_argument("--do_train", default=True, type=bool)
     parser.add_argument("--do_eval", default=False, type=bool)
     parser.add_argument("--labels_file_path", default="class_labels.json", type=str)
+    parser.add_argument("--save_logs", default=True, type=bool)
+    parser.add_argument("--save_frequency", default=5, type=int)
+    parser.add_argument("--checkpoint_path", default="./output", type=str)
     args = parser.parse_args()
 
     main(args)
