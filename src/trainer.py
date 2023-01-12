@@ -1,14 +1,17 @@
 import json
 from datetime import datetime, timedelta
+import os
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data import DataLoader, SequentialSampler
 from tqdm import tqdm
 
 import wandb
 from src.loss import ClipLoss
+from src.sampler import ContrastiveSampler
+from src.scheduler import cosine_lr
 
 
 class Trainer(object):
@@ -43,28 +46,37 @@ class Trainer(object):
                 },
             )
 
-        train_sampler = RandomSampler(self.train_dataset)
-        train_dataloader = DataLoader(self.train_dataset, self.args.batch_size, sampler=train_sampler)
+        train_sampler = ContrastiveSampler(self.train_dataset)
+        train_dataloader = DataLoader(
+            self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
+        )
+        total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+        scheduler = cosine_lr(optimizer, self.args.learning_rate, self.args.warmup, total_steps)
         loss_func = ClipLoss()
+
+        scaler = torch.cuda.amp.GradScaler()
 
         pbar = tqdm(train_dataloader, leave=False)
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
             step = 0
             total_data_num = 0
+            step = len(train_dataloader) * epoch
+            scheduler(step)
 
             for texts, images in pbar:
                 self.model.train()
                 optimizer.zero_grad()
-                images = images.to(self.device, dtype=torch.float32)
-                texts = self.tokenizer(texts).to(self.device)
-                logits_per_image, logits_per_text = self.model(images, texts)
-                total_loss = loss_func(logits_per_image, logits_per_text)
-                total_data_num += len(images)
-                total_loss.backward()
-                optimizer.step()
-
+                with torch.cuda.amp.autocast():
+                    images = images.to(self.device, dtype=torch.float32)
+                    texts = self.tokenizer(texts).to(self.device)
+                    logits_per_image, logits_per_text = self.model(images, texts)
+                    total_loss = loss_func(logits_per_image, logits_per_text)
+                    total_data_num += len(images)
+                scaler.scale(total_loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
                 step += 1
                 train_loss += total_loss.item()
 
@@ -74,6 +86,24 @@ class Trainer(object):
                     wandb.log({"train_loss": total_loss.item(), "train_epoch": epoch})
             train_loss /= step
             print(f"epoch: {epoch} train loss: {train_loss}")
+
+            if self.args.save_logs:
+                checkpoint_dict = {
+                    "epoch": epoch,
+                    "state_dict": self.model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                }
+                #                if scaler is not None:
+                #                    checkpoint_dict["scaler"] = scaler.state_dict()
+
+                if epoch + 1 == self.args.num_train_epochs or (
+                    self.args.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
+                ):
+                    torch.save(
+                        checkpoint_dict,
+                        os.path.join(self.args.checkpoint_path, f"epoch_{epoch}.pt"),
+                    )
+                    print(f"checkpoint 'epoch_{epoch}.pt' saved")
 
     def evaluate(self, mode):
         if mode == "train":
