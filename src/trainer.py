@@ -32,6 +32,8 @@ class Trainer(object):
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         loss_func = ClipLoss()
 
+        scaler = torch.cuda.amp.GradScaler()
+
         pbar = tqdm(train_dataloader, leave=False)
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
@@ -41,13 +43,15 @@ class Trainer(object):
             for texts, images in pbar:
                 self.model.train()
                 optimizer.zero_grad()
-                images = images.to(self.device, dtype=torch.float32)
-                texts = self.tokenizer(texts).to(self.device)
-                logits_per_image, logits_per_text = self.model(images, texts)
-                total_loss = loss_func(logits_per_image, logits_per_text)
-                total_data_num += len(images)
-                total_loss.backward()
-                optimizer.step()
+                with torch.cuda.amp.autocast():
+                    images = images.to(self.device, dtype=torch.float32)
+                    texts = self.tokenizer(texts).to(self.device)
+                    logits_per_image, logits_per_text = self.model(images, texts)
+                    total_loss = loss_func(logits_per_image, logits_per_text)
+                    total_data_num += len(images)
+                scaler.scale(total_loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
 
                 step += 1
                 train_loss += total_loss.item()
