@@ -23,14 +23,14 @@ class FoodImageDataset(Dataset):
         self.text_to_id_dict = None
 
         if mode == "train":
-            labels, data = self.get_dataset(self.labels_file_path, self.train_file_path)
+            self.labels, self.data = self.get_dataset(self.labels_file_path, self.train_file_path)
         elif mode == "test":
-            labels, data = self.get_dataset(self.labels_file_path, self.test_file_path)
+            self.labels, self.data = self.get_dataset(self.labels_file_path, self.test_file_path)
 
-        self.id_to_text_dict = self.get_id_to_text(labels)
-        self.text_to_id_dict = self.get_text_to_id(labels)
+        self.id_to_text_dict = self.get_id_to_text(self.labels)
+        self.text_to_id_dict = self.get_text_to_id(self.labels)
 
-        self.data = data
+        self.data = self.data
 
         self.transforms = transforms
 

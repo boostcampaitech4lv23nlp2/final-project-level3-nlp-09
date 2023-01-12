@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from tqdm import tqdm
 
 from src.loss import ClipLoss
-
+from src.sampler import ContrastiveSampler
 
 class Trainer(object):
     def __init__(self, args, model=None, tokenizer=None, train_dataset=None, valid_dataset=None, test_dataset=None):
@@ -27,7 +27,8 @@ class Trainer(object):
         self.model.to(self.device)
 
     def train(self):
-        train_sampler = RandomSampler(self.train_dataset)
+
+        train_sampler = ContrastiveSampler(self.train_dataset)
         train_dataloader = DataLoader(self.train_dataset, self.args.batch_size, sampler=train_sampler)
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         loss_func = ClipLoss()
