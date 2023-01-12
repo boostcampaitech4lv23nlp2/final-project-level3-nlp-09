@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from tqdm import tqdm
 
 from src.loss import ClipLoss
+from src.scheduler import cosine_lr
 
 
 class Trainer(object):
@@ -28,10 +29,12 @@ class Trainer(object):
 
     def train(self):
         train_sampler = RandomSampler(self.train_dataset)
+        total_steps = len(train_dataloader) * self.args.num_train_epochs
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+        scheduler = cosine_lr(optimizer, self.args.learning_rate, self.args.warmup, total_steps)
         loss_func = ClipLoss()
 
         scaler = torch.cuda.amp.GradScaler()
@@ -41,6 +44,8 @@ class Trainer(object):
             train_loss = 0.0
             step = 0
             total_data_num = 0
+            step = len(train_dataloader) * epoch
+            scheduler(step)
 
             for texts, images in pbar:
                 self.model.train()
@@ -54,7 +59,6 @@ class Trainer(object):
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
-
                 step += 1
                 train_loss += total_loss.item()
 
