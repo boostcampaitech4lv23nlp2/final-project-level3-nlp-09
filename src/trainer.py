@@ -4,10 +4,11 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data import DataLoader, SequentialSampler
 from tqdm import tqdm
 
 from src.loss import ClipLoss
+from src.sampler import ContrastiveSampler
 from src.scheduler import cosine_lr
 
 
@@ -29,11 +30,11 @@ class Trainer(object):
         self.model.to(self.device)
 
     def train(self):
-        train_sampler = RandomSampler(self.train_dataset)
-        total_steps = len(train_dataloader) * self.args.num_train_epochs
+        train_sampler = ContrastiveSampler(self.train_dataset)
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
+        total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         scheduler = cosine_lr(optimizer, self.args.learning_rate, self.args.warmup, total_steps)
         loss_func = ClipLoss()
