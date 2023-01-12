@@ -7,7 +7,6 @@ from torch.utils.data import Dataset
 
 class FoodImageDataset(Dataset):
     def __init__(self, args, transforms, mode="train"):
-
         self.args = args
         self.dataset_path = self.args.dataset_path
         self.dataset_mode = "train" if mode == "train" else "test"
