@@ -17,6 +17,12 @@ def main(args):
     text_cfg = configs["text_cfg"]
     vision_cfg = configs["vision_cfg"]
 
+    if torch.cuda.is_available():
+        # This enables tf32 on Ampere GPUs which is only 8% slower than
+        # float16 and almost as accurate as float32
+        # This was a default in pytorch until 1.12
+        torch.backends.cuda.matmul.allow_tf32 = True
+
     preprocess = image_transform(vision_cfg["image_size"], is_train=True)
 
     model = build_model(vision_cfg, text_cfg)
@@ -44,15 +50,15 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--learning_rate", default=5e-4, type=float)
     parser.add_argument("--eval_batch_size", default=32, type=int)
-    parser.add_argument("--num_train_epochs", default=2, type=int)
+    parser.add_argument("--num_train_epochs", default=5, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
     parser.add_argument("--do_train", default=True, type=bool)
     parser.add_argument("--do_wandb", default=True, type=bool)
     parser.add_argument("--do_eval", default=True, type=bool)
     parser.add_argument("--dataset_path", default="data", type=str)
-    parser.add_argument("--train_info_file_name", default="aihub_1.0_43_0.3_train_crop_crop.json", type=str)
-    parser.add_argument("--test_info_file_name", default="aihub_1.0_43_0.3_test_crop_crop.json", type=str)
+    parser.add_argument("--train_info_file_name", default="aihub_1.0_43_0.3_train_crop.json", type=str)
+    parser.add_argument("--test_info_file_name", default="aihub_1.0_43_0.3_test_crop.json", type=str)
     parser.add_argument("--labels_info_file_name", default="labels.json", type=str)
     parser.add_argument("--save_logs", default=True, type=bool)
     parser.add_argument("--save_frequency", default=5, type=int)
@@ -60,6 +66,12 @@ if __name__ == "__main__":
     parser.add_argument("--resume", default=None, type=str, help="path to latest checkpoint (default: None)")
     parser.add_argument(
         "--val_frequency", default=1, type=int, help="How often to run evaluation with validation data."
+    )
+    parser.add_argument(
+        "--precision",
+        choices=["amp", "amp_bf16", "amp_bfloat16", "bf16", "fp16", "fp32"],
+        default="amp",
+        help="Floating point precision.",
     )
 
     args = parser.parse_args()
