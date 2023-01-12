@@ -18,9 +18,10 @@ def main(args):
     preprocess = image_transform(vision_cfg["image_size"], is_train=True)
 
     model = build_model(vision_cfg, text_cfg)
-    dataset = FoodImageDataset(preprocess, mode="train")
+    train_dataset = FoodImageDataset(args, preprocess, mode="train")
+    valid_dataset = FoodImageDataset(args, preprocess, mode="valid")
     tokenizer = get_tokenizer()
-    trainer = Trainer(args, model, tokenizer, dataset)
+    trainer = Trainer(args, model, tokenizer, train_dataset, valid_dataset)
     if args.do_train:
         trainer.train()
     if args.do_eval:
@@ -31,11 +32,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--learning_rate", default=5e-4, type=float)
-    parser.add_argument("--eval_batch_size", default=64, type=int)
+    parser.add_argument("--eval_batch_size", default=32, type=int)
     parser.add_argument("--num_train_epochs", default=30, type=int)
     parser.add_argument("--do_train", default=True, type=bool)
-    parser.add_argument("--do_eval", default=False, type=bool)
-    parser.add_argument("--labels_file_path", default="class_labels.json", type=str)
+    parser.add_argument("--do_eval", default=True, type=bool)
+    parser.add_argument("--dataset_path", default="data", type=str)
+    parser.add_argument("--train_info_file_name", default="aihub_1.0_43_0.3_train_crop_crop.json", type=str)
+    parser.add_argument("--test_info_file_name", default="aihub_1.0_43_0.3_test_crop_crop.json", type=str)
+    parser.add_argument("--labels_info_file_name", default="labels.json", type=str)
+    parser.add_argument(
+        "--val_frequency", default=1, type=int, help="How often to run evaluation with validation data."
+    )
     args = parser.parse_args()
 
     main(args)
