@@ -29,11 +29,15 @@ class Trainer(object):
 
     def train(self):
         train_sampler = RandomSampler(self.train_dataset)
-        train_dataloader = DataLoader(self.train_dataset, self.args.batch_size, sampler=train_sampler)
         total_steps = len(train_dataloader) * self.args.num_train_epochs
+        train_dataloader = DataLoader(
+            self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
+        )
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         scheduler = cosine_lr(optimizer, self.args.learning_rate, self.args.warmup, total_steps)
         loss_func = ClipLoss()
+
+        scaler = torch.cuda.amp.GradScaler()
 
         pbar = tqdm(train_dataloader, leave=False)
         for epoch in range(self.args.num_train_epochs):
@@ -46,13 +50,16 @@ class Trainer(object):
             for texts, images in pbar:
                 self.model.train()
                 optimizer.zero_grad()
-                images = images.to(self.device, dtype=torch.float32)
-                texts = self.tokenizer(texts).to(self.device)
-                logits_per_image, logits_per_text = self.model(images, texts)
-                total_loss = loss_func(logits_per_image, logits_per_text)
-                total_data_num += len(images)
-                total_loss.backward()
-                optimizer.step()
+                with torch.cuda.amp.autocast():
+                    images = images.to(self.device, dtype=torch.float32)
+                    texts = self.tokenizer(texts).to(self.device)
+                    logits_per_image, logits_per_text = self.model(images, texts)
+                    total_loss = loss_func(logits_per_image, logits_per_text)
+                    total_data_num += len(images)
+                scaler.scale(total_loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+                step += 1
                 train_loss += total_loss.item()
 
                 pbar.set_description(f"epoch: {epoch}/ train loss: {total_loss.item()}", refresh=True)

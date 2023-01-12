@@ -34,6 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_batch_size", default=64, type=int)
     parser.add_argument("--num_train_epochs", default=30, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
+    parser.add_argument("--num_workers", default=4, type=int)
     parser.add_argument("--do_train", default=True, type=bool)
     parser.add_argument("--do_eval", default=False, type=bool)
     parser.add_argument("--labels_file_path", default="class_labels.json", type=str)
