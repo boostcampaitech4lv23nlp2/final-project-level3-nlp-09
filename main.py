@@ -4,7 +4,7 @@ import json
 from src.dataset import FoodImageDataset
 from src.model import build_model
 from src.preprocess import image_transform
-from src.tokenizer import get_tokenizer
+from src.tokenizer import FoodTokenizer
 from src.trainer import Trainer
 
 
@@ -19,7 +19,9 @@ def main(args):
 
     model = build_model(vision_cfg, text_cfg)
     dataset = FoodImageDataset(preprocess, mode="train")
-    tokenizer = get_tokenizer()
+    # tokenizer = get_tokenizer()
+    tokens_path = "./src/model_configs/tokens_by_length.json"
+    tokenizer = FoodTokenizer(tokens_path, configs=configs)
     trainer = Trainer(args, model, tokenizer, dataset)
     if args.do_train:
         trainer.train()
@@ -29,10 +31,10 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=32, type=int)
+    parser.add_argument("--batch_size", default=2, type=int)
     parser.add_argument("--learning_rate", default=5e-4, type=float)
     parser.add_argument("--eval_batch_size", default=64, type=int)
-    parser.add_argument("--num_train_epochs", default=30, type=int)
+    parser.add_argument("--num_train_epochs", default=32, type=int)
     parser.add_argument("--do_train", default=True, type=bool)
     parser.add_argument("--do_eval", default=False, type=bool)
     parser.add_argument("--labels_file_path", default="class_labels.json", type=str)
