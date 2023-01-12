@@ -13,7 +13,6 @@ class FoodImageDataset(Dataset):
         self.labels_info_file_name = self.args.labels_info_file_name
         self.train_info_file_name = self.args.train_info_file_name
         self.test_info_file_name = self.args.test_info_file_name
-
         self.labels_file_path = os.path.join(self.dataset_path, self.labels_info_file_name)
         self.train_file_path = os.path.join(self.dataset_path, self.train_info_file_name)
         self.test_file_path = os.path.join(self.dataset_path, self.test_info_file_name)
