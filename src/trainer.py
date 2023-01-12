@@ -154,6 +154,8 @@ class Trainer(object):
             loss = cumulative_loss / num_samples
             print(f"validation loss: {loss}")
             metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
+            if self.args.do_wandb:
+                wandb.log(metrics)
 
     def get_metrics(self, image_features, text_features, logit_scale):
         metrics = {}
