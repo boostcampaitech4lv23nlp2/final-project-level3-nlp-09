@@ -51,13 +51,14 @@ class Trainer(object):
 
         scaler = torch.cuda.amp.GradScaler()
 
-        pbar = tqdm(train_dataloader, leave=False)
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
             step = 0
             total_data_num = 0
             step = len(train_dataloader) * epoch
             scheduler(step)
+
+            pbar = tqdm(train_dataloader, leave=True)
 
             for texts, images in pbar:
                 self.model.train()
@@ -74,7 +75,7 @@ class Trainer(object):
                 step += 1
                 train_loss += total_loss.item()
 
-                pbar.set_description(f"epoch: {epoch}/ train loss: {total_loss.item()}", refresh=True)
+                pbar.set_description(f"epoch: {epoch}/ train loss: {total_loss.item()}")
 
                 if self.args.do_wandb:
                     wandb.log({"train_loss": total_loss.item(), "train_epoch": epoch})
@@ -118,7 +119,7 @@ class Trainer(object):
         cumulative_loss = 0.0
         num_samples = 0
 
-        pbar = tqdm(eval_dataloader, leave=False)
+        pbar = tqdm(eval_dataloader, leave=True)
 
         with torch.no_grad():
             for texts, images in pbar:
@@ -144,7 +145,7 @@ class Trainer(object):
                     ) / 2
                 cumulative_loss += total_loss * batch_size
                 num_samples += batch_size
-                pbar.set_description(f"validation loss: {total_loss.item()}", refresh=True)
+                pbar.set_description(f"validation loss: {total_loss.item()}")
             val_metrics = self.get_metrics(
                 image_features=torch.cat(all_image_features),
                 text_features=torch.cat(all_text_features),
