@@ -25,7 +25,7 @@ def main(args):
     if args.do_train:
         trainer.train()
     if args.do_eval:
-        trainer.evaluate()
+        trainer.evaluate(mode="valid")
 
 
 if __name__ == "__main__":

@@ -56,7 +56,7 @@ class Trainer(object):
             if self.args.val_frequency > 0 and (epoch + 1) % self.args.val_frequency == 0:
                 self.evaluate(mode="valid")
 
-    def evaluate(self, mode):
+    def evaluate(self, mode="valid"):
         if mode == "train":
             dataset = self.train_dataset
         elif mode == "valid":
@@ -83,8 +83,8 @@ class Trainer(object):
                     text_features = self.model.encode_text(texts)
                     logit_scale = self.model.logit_scale.exp()
 
-                    all_image_features.append(image_features.cpu())
-                    all_text_features.append(text_features.cpu())
+                    all_image_features.append(image_features)
+                    all_text_features.append(text_features)
 
                     image_features = image_features / image_features.norm(dim=1, keepdim=True)
                     text_features = text_features / text_features.norm(dim=1, keepdim=True)
@@ -102,18 +102,19 @@ class Trainer(object):
             val_metrics = self.get_metrics(
                 image_features=torch.cat(all_image_features),
                 text_features=torch.cat(all_text_features),
-                logit_scale=logit_scale.cpu(),
+                logit_scale=logit_scale,
             )
             loss = cumulative_loss / num_samples
+            print(f"validation loss: {loss}")
             metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
 
     def get_metrics(self, image_features, text_features, logit_scale):
         metrics = {}
-        logits_per_image = (logit_scale * image_features @ text_features.t()).detach().cpu()
-        logits_per_text = logits_per_image.t().detach().cpu()
+        logits_per_image = logit_scale * image_features @ text_features.t()
+        logits_per_text = logits_per_image.t()
 
         logits = {"image_to_text": logits_per_image, "text_to_image": logits_per_text}
-        ground_truth = torch.arange(len(text_features)).view(-1, 1)
+        ground_truth = torch.arange(len(text_features)).view(-1, 1).to(self.device)
 
         for name, logit in logits.items():
             ranking = torch.argsort(logit, descending=True)
