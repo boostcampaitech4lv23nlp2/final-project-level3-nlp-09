@@ -12,6 +12,7 @@ import wandb
 from src.loss import ClipLoss
 from src.sampler import ContrastiveSampler
 from src.scheduler import cosine_lr
+from src.utils import get_autocast, get_cast_dtype
 
 
 class Trainer(object):
@@ -40,6 +41,8 @@ class Trainer(object):
                 },
             )
 
+        autocast = get_autocast(self.args.precision)
+        cast_dtype = get_cast_dtype(self.args.precision)
         train_sampler = ContrastiveSampler(self.train_dataset)
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
@@ -63,8 +66,8 @@ class Trainer(object):
             for texts, images in pbar:
                 self.model.train()
                 optimizer.zero_grad()
-                with torch.cuda.amp.autocast():
-                    images = images.to(self.device, dtype=torch.float32)
+                with autocast():
+                    images = images.to(self.device, dtype=cast_dtype)
                     texts = self.tokenizer(texts).to(self.device)
                     logits_per_image, logits_per_text = self.model(images, texts)
                     total_loss = loss_func(logits_per_image, logits_per_text)
@@ -114,18 +117,20 @@ class Trainer(object):
         metrics = {}
         self.model.eval()
         eval_dataloader = DataLoader(dataset, self.args.eval_batch_size, sampler=eval_sampler)
-
+        autocast = get_autocast(self.args.precision)
+        cast_dtype = get_cast_dtype(self.args.precision)
         all_image_features, all_text_features = [], []
         cumulative_loss = 0.0
         num_samples = 0
 
         pbar = tqdm(eval_dataloader, leave=True)
+        valid_acc = 0
 
         with torch.no_grad():
             for texts, images in pbar:
-                images = images.to(self.device, dtype=torch.float32)
+                images = images.to(self.device, dtype=cast_dtype)
                 texts = self.tokenizer(texts).to(self.device)
-                with torch.cuda.amp.autocast():
+                with autocast():
                     image_features = self.model.encode_image(images)
                     text_features = self.model.encode_text(texts)
                     logit_scale = self.model.logit_scale.exp()
@@ -143,19 +148,24 @@ class Trainer(object):
                     total_loss = (
                         F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)
                     ) / 2
+                    _, preds = torch.max(logits_per_image, 1)
+                    valid_acc += torch.sum(preds.cpu() == labels.cpu()) / batch_size
                 cumulative_loss += total_loss * batch_size
                 num_samples += batch_size
+
                 pbar.set_description(f"validation loss: {total_loss.item()}")
-            val_metrics = self.get_metrics(
+            """val_metrics = self.get_metrics(
                 image_features=torch.cat(all_image_features),
                 text_features=torch.cat(all_text_features),
                 logit_scale=logit_scale,
-            )
+            )"""
             loss = cumulative_loss / num_samples
+            valid_acc = valid_acc / len(eval_dataloader)
             print(f"validation loss: {loss}")
-            metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
+            metrics.update()
+            # metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
             if self.args.do_wandb:
-                wandb.log(metrics)
+                wandb.log({"valid_loss": loss.item(), "valid_acc": valid_acc})
 
     def get_metrics(self, image_features, text_features, logit_scale):
         metrics = {}
@@ -163,7 +173,7 @@ class Trainer(object):
         logits_per_text = logits_per_image.t()
 
         logits = {"image_to_text": logits_per_image, "text_to_image": logits_per_text}
-        ground_truth = torch.arange(len(text_features)).view(-1, 1).to(self.device)
+        ground_truth = torch.arange(len(text_features)).view(-1, 1)
 
         for name, logit in logits.items():
             ranking = torch.argsort(logit, descending=True)
