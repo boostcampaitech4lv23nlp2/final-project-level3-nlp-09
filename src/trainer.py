@@ -124,6 +124,7 @@ class Trainer(object):
         num_samples = 0
 
         pbar = tqdm(eval_dataloader, leave=True)
+        valid_acc = 0
 
         with torch.no_grad():
             for texts, images in pbar:
@@ -134,8 +135,8 @@ class Trainer(object):
                     text_features = self.model.encode_text(texts)
                     logit_scale = self.model.logit_scale.exp()
 
-                    all_image_features.append(image_features.cpu())
-                    all_text_features.append(text_features.cpu())
+                    all_image_features.append(image_features)
+                    all_text_features.append(text_features)
 
                     image_features = image_features / image_features.norm(dim=1, keepdim=True)
                     text_features = text_features / text_features.norm(dim=1, keepdim=True)
@@ -147,24 +148,27 @@ class Trainer(object):
                     total_loss = (
                         F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)
                     ) / 2
+                    _, preds = torch.max(logits_per_image, 1)
+                    valid_acc += torch.sum(preds.cpu() == labels.cpu()) / batch_size
                 cumulative_loss += total_loss * batch_size
                 num_samples += batch_size
+
                 pbar.set_description(f"validation loss: {total_loss.item()}")
-            val_metrics = self.get_metrics(
+            """val_metrics = self.get_metrics(
                 image_features=torch.cat(all_image_features),
                 text_features=torch.cat(all_text_features),
-                logit_scale=logit_scale.cpu(),
-            )
+                logit_scale=logit_scale,
+            )"""
             loss = cumulative_loss / num_samples
+            valid_acc = valid_acc / len(eval_dataloader)
             print(f"validation loss: {loss}")
-            metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
+            metrics.update()
+            # metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
             if self.args.do_wandb:
-                wandb.log(metrics)
+                wandb.log({"valid_loss": loss.item(), "valid_acc": valid_acc})
 
     def get_metrics(self, image_features, text_features, logit_scale):
         metrics = {}
-        image_features = image_features.type(torch.float)
-        text_features = text_features.type(torch.float)
         logits_per_image = logit_scale * image_features @ text_features.t()
         logits_per_text = logits_per_image.t()
 
