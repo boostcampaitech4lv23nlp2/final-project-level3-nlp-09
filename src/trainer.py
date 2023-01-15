@@ -11,8 +11,12 @@ from tqdm import tqdm
 import wandb
 from src.loss import ClipLoss
 from src.sampler import ContrastiveSampler
-from src.scheduler import cosine_lr
 from src.utils import get_autocast, get_cast_dtype
+
+
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group["lr"]
 
 
 class Trainer(object):
@@ -47,9 +51,9 @@ class Trainer(object):
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
-        total_steps = len(train_dataloader) * self.args.num_train_epochs
+        # total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
-        scheduler = cosine_lr(optimizer, self.args.learning_rate, self.args.warmup, total_steps)
+        scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10000, T_mult=2, eta_min=0)
         loss_func = ClipLoss()
 
         scaler = torch.cuda.amp.GradScaler()
@@ -59,7 +63,6 @@ class Trainer(object):
             step = 0
             total_data_num = 0
             step = len(train_dataloader) * epoch
-            scheduler(step)
 
             pbar = tqdm(train_dataloader, leave=True)
 
@@ -74,14 +77,16 @@ class Trainer(object):
                     total_data_num += len(images)
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
+
                 scaler.update()
                 step += 1
                 train_loss += total_loss.item()
+                scheduler.step()
 
                 pbar.set_description(f"epoch: {epoch}/ train loss: {total_loss.item()}")
 
                 if self.args.do_wandb:
-                    wandb.log({"train_loss": total_loss.item(), "train_epoch": epoch})
+                    wandb.log({"train_loss": total_loss.item(), "train_epoch": epoch, "lr": get_lr(optimizer)})
             train_loss /= step
             print(f"epoch: {epoch} train loss: {train_loss}")
 
