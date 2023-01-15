@@ -1,0 +1,23 @@
+name: PRs reviews reminder
+
+on:
+  schedule:
+    - cron: "45 0 * * *" #KST: 10:00
+    - cron: "45 2 * * *" #KST: 12:00
+    - cron: "45 3 * * *" #KST: 13:00
+    - cron: "45 6 * * *" #KST: 16:00
+    - cron: "45 8 * * *" #KST: 18:00
+
+jobs:
+  pr-reviews-reminder:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: davideviolante/pr-reviews-reminder-action@v2.1.4
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        webhook-url: 'https://hooks.slack.com/services/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' # Required
+        provider: 'slack' # Required (slack or msteams)
+        channel: '#ecl-free-talking' # Optional, eg: #general
+        github-provider-map: 'wbin0718:U041WE3RDMX,FacerAin:U041WE4P8GZ,ghlrobin:U041HN2FGMR,kyc3492:U041388FBM5,jinmyeongAN:U041HR962M8' # Optional, eg: DavideViolante:UEABCDEFG,foobar:UAABCDEFG
+        ignore-label: '' # Optional, eg: no-reminder
