@@ -52,7 +52,7 @@ class Trainer(object):
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
         # total_steps = len(train_dataloader) * self.args.num_train_epochs
-        optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
+        optimizer = optim.AdamW(self.model.parameters(), lr=self.args.learning_rate)
         scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10000, T_mult=2, eta_min=0)
         loss_func = ClipLoss()
 
