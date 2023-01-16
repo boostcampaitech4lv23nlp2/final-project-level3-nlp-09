@@ -2,6 +2,8 @@ import numpy as np
 import torch
 from torch.utils.data.sampler import Sampler
 
+# TODO: 데이터에서 뽑을 수 있게끔 수정
+
 
 class ContrastiveSampler(Sampler):
     def __init__(self, dset, shuffle: bool = True, seed: int = 42, oversample=False):
@@ -12,8 +14,8 @@ class ContrastiveSampler(Sampler):
         self.epoch = 0
 
         self.cls = {}
-        for ind, data in enumerate(self.dset.labels):
-            label = data["id"]
+        for ind, data in enumerate(self.dset.data):
+            label = data["category_id"]
             if label in self.cls:
                 self.cls[label].append(ind)
             else:
@@ -57,7 +59,7 @@ class ContrastiveSampler(Sampler):
             indicies.append(index)
 
         assert len(indicies) == len(self.dset)
-        assert len(self.cls) == len(set([self.dset.labels[idx]["id"] for idx in indicies]))
+        assert len(self.cls) == len(set([self.dset.data[idx]["category_id"] for idx in indicies]))
         return iter(indicies)
 
     def __len__(self):
