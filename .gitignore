@@ -133,3 +133,5 @@ dmypy.json
 
 # custom
 /data
+test.ipynb
+/wandb
