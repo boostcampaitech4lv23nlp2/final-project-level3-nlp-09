@@ -8,6 +8,7 @@ from src.model import build_model
 from src.preprocess import image_transform
 from src.tokenizer import FoodTokenizer
 from src.trainer import Trainer
+from src.utils import set_seed
 
 
 def main(args):
@@ -16,6 +17,8 @@ def main(args):
         configs = json.load(f)
     text_cfg = configs["text_cfg"]
     vision_cfg = configs["vision_cfg"]
+
+    set_seed(args.seed)
 
     if torch.cuda.is_available():
         # This enables tf32 on Ampere GPUs which is only 8% slower than
@@ -50,6 +53,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=128, type=int)
+    parser.add_argument("--seed", default=200, type=int)
     parser.add_argument("--learning_rate", default=5e-5, type=float)
     parser.add_argument("--eval_batch_size", default=32, type=int)
     parser.add_argument("--num_train_epochs", default=10, type=int)
