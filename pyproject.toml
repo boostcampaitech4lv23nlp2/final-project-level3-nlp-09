@@ -27,5 +27,7 @@ use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 120
 known_typing = ["typing", "types", "typing_extensions", "mypy", "mypy_extensions"]
+known_third_party = ["wandb"]
 sections = ["FUTURE", "TYPING", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+skip_gitignore = true
 profile = "black"

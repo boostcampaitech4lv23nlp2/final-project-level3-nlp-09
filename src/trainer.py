@@ -4,11 +4,11 @@ from datetime import datetime, timedelta
 import numpy as np
 import torch
 import torch.optim as optim
+import wandb
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, SequentialSampler
 from tqdm import tqdm
 
-import wandb
 from src.loss import ClipLoss
 from src.sampler import ContrastiveSampler
 from src.utils import get_autocast, get_cast_dtype
