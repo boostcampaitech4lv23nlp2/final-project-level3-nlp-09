@@ -35,7 +35,7 @@ def main(args):
         print(f"=> from resuming checkpoint '{args.resume}' ")
     train_dataset = FoodImageDataset(args, preprocess, mode="train")
     dataset = FoodImageDataset(args, preprocess, mode="test")
-    valid_dataset, test_dataset = get_split_dataset(dataset, 0.1)
+    valid_dataset, test_dataset = get_split_dataset(dataset, 0.05)
 
     tokens_path = "./src/model_configs/tokens_by_length.json"
     tokenizer = FoodTokenizer(tokens_path, configs=configs)
@@ -50,9 +50,9 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=32, type=int)
-    parser.add_argument("--learning_rate", default=5e-4, type=float)
+    parser.add_argument("--learning_rate", default=5e-5, type=float)
     parser.add_argument("--eval_batch_size", default=32, type=int)
-    parser.add_argument("--num_train_epochs", default=5, type=int)
+    parser.add_argument("--num_train_epochs", default=10, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
     parser.add_argument("--do_train", default=True, type=bool)
