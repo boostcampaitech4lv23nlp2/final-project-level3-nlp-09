@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime, timedelta
 
@@ -107,9 +108,9 @@ class Trainer(object):
                 ):
                     torch.save(
                         checkpoint_dict,
-                        os.path.join(self.args.checkpoint_path, f"epoch_{epoch}.pt"),
+                        os.path.join(self.args.checkpoint_path, f"{name}_{epoch}.pt"),
                     )
-                    print(f"checkpoint 'epoch_{epoch}.pt' saved")
+                    print(f"checkpoint '{name}_{epoch}.pt' saved")
 
     def evaluate(self, mode):
         if mode == "train":
@@ -131,13 +132,19 @@ class Trainer(object):
         pbar = tqdm(eval_dataloader, leave=True)
         valid_acc = 0
 
+        with open("data/labels.json") as f:
+            labels_json = json.load(f)
+        food_labels = [item["label"] for item in labels_json["categories"]]
+        tokenized_food_labels = self.tokenizer(food_labels).to(self.device)
+
         with torch.no_grad():
             for texts, images in pbar:
                 images = images.to(self.device, dtype=cast_dtype)
-                texts = self.tokenizer(texts).to(self.device)
+                tokenized_texts = self.tokenizer(texts).to(self.device)
                 with autocast():
                     image_features = self.model.encode_image(images)
-                    text_features = self.model.encode_text(texts)
+                    text_features = self.model.encode_text(tokenized_texts)
+                    food_features = self.model.encode_text(tokenized_food_labels)
                     logit_scale = self.model.logit_scale.exp()
 
                     all_image_features.append(image_features)
@@ -145,16 +152,18 @@ class Trainer(object):
 
                     image_features = image_features / image_features.norm(dim=1, keepdim=True)
                     text_features = text_features / text_features.norm(dim=1, keepdim=True)
+                    food_features = food_features / food_features.norm(dim=1, keepdim=True)
 
                     logits_per_image = logit_scale * image_features @ text_features.t()
+                    logits_per_image_food = logit_scale * image_features @ food_features.t()
                     logits_per_text = logits_per_image.t()
                     batch_size = images.shape[0]
                     labels = torch.arange(batch_size, device=self.device).long()
                     total_loss = (
                         F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)
                     ) / 2
-                    _, preds = torch.max(logits_per_image, 1)
-                    valid_acc += torch.sum(preds.cpu() == labels.cpu()) / batch_size
+                    _, preds = torch.max(logits_per_image_food, 1)
+                    valid_acc += sum(np.asarray(food_labels)[preds.cpu()] == np.asarray(texts)) / batch_size
                 cumulative_loss += total_loss * batch_size
                 num_samples += batch_size
 
@@ -167,6 +176,7 @@ class Trainer(object):
             loss = cumulative_loss / num_samples
             valid_acc = valid_acc / len(eval_dataloader)
             print(f"validation loss: {loss}")
+            print(f"validation accuraccy: {valid_acc}")
             metrics.update()
             # metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
             if self.args.do_wandb:
