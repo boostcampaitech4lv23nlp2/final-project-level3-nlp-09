@@ -1,7 +1,9 @@
+import json
 import os
 from datetime import datetime, timedelta
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.optim as optim
 import wandb
@@ -29,6 +31,14 @@ class Trainer(object):
         self.test_dataset = test_dataset
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model.to(self.device)
+
+        with open(os.path.join(args.dataset_path, args.labels_info_file_name)) as f:
+            labels_json = json.load(f)
+
+        self.text_to_id_dict = {item["label"]: item["id"] for item in labels_json["categories"]}
+        self.id_to_text_dict = {item["id"]: item["label"] for item in labels_json["categories"]}
+        num_labels = len(labels_json["categories"])
+        self.labels = [self.id_to_text_dict[idx] for idx in range(num_labels)]
 
     def train(self):
         if self.args.do_wandb:
@@ -166,11 +176,55 @@ class Trainer(object):
             )"""
             loss = cumulative_loss / num_samples
             valid_acc = valid_acc / len(eval_dataloader)
-            print(f"validation loss: {loss}")
+            print(f"validation loss: {loss} validation acc: {valid_acc}")
             metrics.update()
             # metrics.update({**val_metrics, "val_loss": loss.item(), "num_samples": num_samples})
             if self.args.do_wandb:
                 wandb.log({"valid_loss": loss.item(), "valid_acc": valid_acc})
+
+    def inference(self, mode):
+        if mode == "train":
+            dataset = self.train_dataset
+        elif mode == "valid":
+            dataset = self.valid_dataset
+        elif mode == "test":
+            dataset = self.test_dataset
+        eval_sampler = SequentialSampler(dataset)
+        metrics = {}
+        self.model.eval()
+        eval_dataloader = DataLoader(dataset, 1, sampler=eval_sampler)
+        autocast = get_autocast(self.args.precision)
+        cast_dtype = get_cast_dtype(self.args.precision)
+        num_samples = 0
+        correct_num = 0
+        pbar = tqdm(eval_dataloader, leave=True)
+        valid_acc = 0
+        pred_texts = []
+        correct_texts = []
+
+        with torch.no_grad():
+            for texts, images in pbar:
+                images = images.to(self.device, dtype=cast_dtype)
+                org_texts_id = self.text_to_id_dict[list(texts)[0]]
+                texts = self.tokenizer(self.labels).to(self.device)
+                with autocast():
+                    image_features = self.model.encode_image(images)
+                    text_features = self.model.encode_text(texts)
+                image_features = image_features / image_features.norm(dim=1, keepdim=True)
+                text_features = text_features / text_features.norm(dim=1, keepdim=True)
+                similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
+                batch_size = images.shape[0]
+                _, indices = similarity[0].topk(1)
+                correct_num += org_texts_id == indices[0].item()
+                num_samples += batch_size
+                pred_text_id = indices[0].item()
+                pred_texts.append(self.id_to_text_dict[pred_text_id])
+                correct_texts.append(self.id_to_text_dict[org_texts_id])
+            valid_acc = correct_num / len(eval_dataloader)
+            df = pd.DataFrame({"pred_texts": pred_texts, "correct_texts": correct_texts})
+            df.to_csv(os.path.join(self.args.dataset_path, "result.csv"))
+            print(f"validation acc: {valid_acc}")
+            metrics.update()
 
     def get_metrics(self, image_features, text_features, logit_scale):
         metrics = {}
