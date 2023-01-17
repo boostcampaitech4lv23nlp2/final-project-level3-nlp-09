@@ -59,6 +59,9 @@ class Trainer(object):
 
         scaler = torch.cuda.amp.GradScaler()
 
+        with open("data/food_to_category.json") as f:
+            category_json = json.load(f)
+
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
             step = 0
@@ -72,6 +75,7 @@ class Trainer(object):
                 optimizer.zero_grad()
                 with autocast():
                     images = images.to(self.device, dtype=cast_dtype)
+                    texts = [category_json[text] for text in texts]
                     texts = self.tokenizer(texts).to(self.device)
                     logits_per_image, logits_per_text = self.model(images, texts)
                     total_loss = loss_func(logits_per_image, logits_per_text)
@@ -132,9 +136,9 @@ class Trainer(object):
         pbar = tqdm(eval_dataloader, leave=True)
         valid_acc = 0
 
-        with open("data/labels.json") as f:
+        with open("data/category_dict.json", encoding="euc-kr") as f:
             labels_json = json.load(f)
-        food_labels = [item["label"] for item in labels_json["categories"]]
+        food_labels = [item for item in labels_json]
         tokenized_food_labels = self.tokenizer(food_labels).to(self.device)
 
         with torch.no_grad():

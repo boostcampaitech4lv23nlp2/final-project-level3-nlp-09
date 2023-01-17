@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import torch
 from torch.utils.data.sampler import Sampler
@@ -13,9 +15,17 @@ class ContrastiveSampler(Sampler):
         self.ind_cls = 0
         self.epoch = 0
 
+        with open("data/food_to_category.json") as f:
+            category_json = json.load(f)
+        category_to_id = {k: v for v, k in enumerate(set(category_json.values()))}
+
+        with open("data/labels.json") as f:
+            labels_json = json.load(f)
+        food_labels = {item["id"]: item["label"] for item in labels_json["categories"]}
+
         self.cls = {}
         for ind, data in enumerate(self.dset.data):
-            label = data["category_id"]
+            label = category_to_id[category_json[food_labels[data["category_id"]]]]
             if label in self.cls:
                 self.cls[label].append(ind)
             else:
@@ -59,7 +69,7 @@ class ContrastiveSampler(Sampler):
             indicies.append(index)
 
         assert len(indicies) == len(self.dset)
-        assert len(self.cls) == len(set([self.dset.data[idx]["category_id"] for idx in indicies]))
+        # assert len(self.cls) == len(set([self.dset.data[idx]["category_id"] for idx in indicies]))
         return iter(indicies)
 
     def __len__(self):
