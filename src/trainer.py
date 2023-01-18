@@ -59,9 +59,6 @@ class Trainer(object):
 
         scaler = torch.cuda.amp.GradScaler()
 
-        with open("data/food_to_category.json") as f:
-            category_json = json.load(f)
-
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
             step = 0
@@ -75,7 +72,6 @@ class Trainer(object):
                 optimizer.zero_grad()
                 with autocast():
                     images = images.to(self.device, dtype=cast_dtype)
-                    texts = [category_json[text] for text in texts]
                     texts = self.tokenizer(texts).to(self.device)
                     logits_per_image, logits_per_text = self.model(images, texts)
                     total_loss = loss_func(logits_per_image, logits_per_text)
@@ -123,6 +119,7 @@ class Trainer(object):
             dataset = self.valid_dataset
         elif mode == "test":
             dataset = self.test_dataset
+        # eval_sampler = SubsetContrastiveSampler(dataset)
         eval_sampler = SequentialSampler(dataset)
         metrics = {}
         self.model.eval()
@@ -137,13 +134,22 @@ class Trainer(object):
         valid_acc = 0
 
         with open("data/category_dict.json", encoding="euc-kr") as f:
-            labels_json = json.load(f)
-        food_labels = [item for item in labels_json]
+            category_json = json.load(f)
+        category_to_id = {k: idx for idx, k in enumerate(category_json.keys())}
+
+        # with open("data/labels.json") as f:
+        #    labels_json = json.load(f)
+        food_labels = list(category_to_id.keys())
+
         tokenized_food_labels = self.tokenizer(food_labels).to(self.device)
+
+        with open("data/food_to_category.json") as f:
+            food_to_category = json.load(f)
 
         with torch.no_grad():
             for texts, images in pbar:
                 images = images.to(self.device, dtype=cast_dtype)
+                texts = [food_to_category[text] for text in texts]
                 tokenized_texts = self.tokenizer(texts).to(self.device)
                 with autocast():
                     image_features = self.model.encode_image(images)
