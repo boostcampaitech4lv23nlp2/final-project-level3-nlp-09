@@ -115,11 +115,18 @@ class Trainer(object):
                 if epoch + 1 == self.args.num_train_epochs or (
                     self.args.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
                 ):
+                    model_name = f"{name}_{epoch}.pt"
+
                     torch.save(
                         checkpoint_dict,
-                        os.path.join(self.args.checkpoint_path, f"epoch_{epoch}.pt"),
+                        os.path.join(self.args.checkpoint_path, model_name),
                     )
-                    print(f"checkpoint 'epoch_{epoch}.pt' saved")
+                    print(f"checkpoint {model_name} saved")
+
+                    if self.args.do_wandb:
+                        model_artifact = wandb.Artifact(model_name, type="model")
+                        model_artifact.add_file("src/output/" + model_name)
+                        wandb.log_artifact(model_artifact)
 
     def evaluate(self, mode):
         if mode == "train":
