@@ -24,6 +24,6 @@ jobs:
       - name: Install requirements
         run: |
           pip install --upgrade --upgrade-strategy eager -r requirements.txt -e .
-      - name: Check Lint (black, flake8, isort)
+      - name: Test code
         run: |
           make test
