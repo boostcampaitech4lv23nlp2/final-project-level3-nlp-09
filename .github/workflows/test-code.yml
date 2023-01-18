@@ -27,7 +27,8 @@ jobs:
             ${{ runner.os }}-
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
       - name: Check Lint (black, flake8, isort)
         run: |
           make test
