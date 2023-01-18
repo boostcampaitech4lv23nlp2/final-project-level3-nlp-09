@@ -2,7 +2,7 @@ import json
 import os
 
 from PIL import Image
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, random_split
 
 
 class FoodImageDataset(Dataset):
@@ -66,3 +66,10 @@ class FoodImageDataset(Dataset):
         image = Image.open(file_path)
         image = self.transforms(image)
         return text, image
+
+
+def get_split_dataset(dataset, ratio):
+    dataset_a_len = int(len(dataset) * ratio)
+    dataset_b_len = int(len(dataset) - dataset_a_len)
+    dataset_a, dataset_b = random_split(dataset, [dataset_a_len, dataset_b_len])
+    return dataset_a, dataset_b
