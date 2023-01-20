@@ -42,7 +42,7 @@ class Trainer(object):
 
         train_sampler = ContrastiveSampler(self.train_dataset)
         train_dataloader = DataLoader(
-            self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
+            self.train_dataset, self.args.batch_size * 3, sampler=train_sampler, num_workers=self.args.num_workers
         )
         total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
@@ -51,6 +51,9 @@ class Trainer(object):
 
         scaler = torch.cuda.amp.GradScaler()
 
+        outputs_texts = []
+        outputs_images = []
+        t = 0.07
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
             step = 0
@@ -63,11 +66,44 @@ class Trainer(object):
             for texts, images in pbar:
                 self.model.train()
                 optimizer.zero_grad()
+
                 with torch.cuda.amp.autocast():
-                    images = images.to(self.device, dtype=torch.float32)
-                    texts = self.tokenizer(texts).to(self.device)
-                    logits_per_image, logits_per_text = self.model(images, texts)
-                    total_loss = loss_func(logits_per_image, logits_per_text)
+
+                    for index in range(0, self.args.batch_size * 3, 3):
+                        text = texts[index : index + 3]
+                        image = images[index : index + 3]
+                        image = image.to(self.device, dtype=torch.float32)
+                        text = self.tokenizer(list(text)).to(self.device)
+                        logits_per_image = self.model.encode_image(image)
+                        logits_per_text = self.model.encode_text(text)
+
+                        logits_per_image = logits_per_image / logits_per_image.norm(dim=1, keepdim=True)
+                        logits_per_text = logits_per_text / logits_per_text.norm(dim=1, keepdim=True)
+
+                        outputs_texts.append(logits_per_text.view(1, -1))
+                        outputs_images.append(logits_per_image.view(1, -1))
+
+                    logits_per_texts = torch.cat(outputs_texts)
+                    logits_per_images = torch.cat(outputs_images)
+                    window = logits_per_texts.size(-1) // 3
+
+                    logits_per_texts = logits_per_texts[:, : logits_per_texts.size(-1) // 3]
+
+                    pos_logits = torch.sum(
+                        logits_per_images[:, :window] * logits_per_images[:, window : window * 2], dim=1
+                    )
+                    neg_logits = torch.sum(
+                        logits_per_images[:, :window] * logits_per_images[:, window * 2 : window * 3], dim=1
+                    )
+                    logits = torch.cat([pos_logits.view(-1, 1), neg_logits.view(-1, 1)], dim=1)
+                    logits = logits / t
+                    logits = torch.exp(logits)
+                    logits = logits / torch.sum(logits)
+                    loss = torch.sum(-torch.log(logits[:, 0] / torch.sum(logits, dim=1))) / logits.size(0)
+
+                    total_loss = loss_func(logits_per_images[:, :window], logits_per_texts)
+
+                    total_loss = loss + total_loss
                     total_data_num += len(images)
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
