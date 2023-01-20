@@ -8,7 +8,7 @@ import torch
 import torch.optim as optim
 import wandb
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, SequentialSampler
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.loss import ClipLoss
@@ -34,6 +34,10 @@ class Trainer(object):
 
         with open(os.path.join(args.dataset_path, args.labels_info_file_name)) as f:
             labels_json = json.load(f)
+
+        with open("data/food_to_category.json") as f:
+            food_to_category = json.load(f)
+        self.food_to_category = food_to_category
 
         self.text_to_id_dict = {item["label"]: item["id"] for item in labels_json["categories"]}
         self.id_to_text_dict = {item["id"]: item["label"] for item in labels_json["categories"]}
@@ -77,6 +81,7 @@ class Trainer(object):
             pbar = tqdm(train_dataloader, leave=True)
 
             for texts, images in pbar:
+                texts = [self.food_to_category[text] for text in list(texts)]
                 self.model.train()
                 optimizer.zero_grad()
                 with autocast():
@@ -128,7 +133,8 @@ class Trainer(object):
             dataset = self.valid_dataset
         elif mode == "test":
             dataset = self.test_dataset
-        eval_sampler = SequentialSampler(dataset)
+        # eval_sampler = SequentialSampler(dataset)
+        eval_sampler = CategoryContrastiveSampler(dataset)
         metrics = {}
         self.model.eval()
         eval_dataloader = DataLoader(dataset, self.args.eval_batch_size, sampler=eval_sampler)
@@ -143,6 +149,7 @@ class Trainer(object):
 
         with torch.no_grad():
             for texts, images in pbar:
+                texts = [self.food_to_category[text] for text in list(texts)]
                 images = images.to(self.device, dtype=cast_dtype)
                 texts = self.tokenizer(texts).to(self.device)
                 with autocast():
@@ -189,7 +196,7 @@ class Trainer(object):
             dataset = self.valid_dataset
         elif mode == "test":
             dataset = self.test_dataset
-        eval_sampler = SequentialSampler(dataset)
+        eval_sampler = CategoryContrastiveSampler(dataset)
         metrics = {}
         self.model.eval()
         eval_dataloader = DataLoader(dataset, 1, sampler=eval_sampler)
@@ -202,11 +209,16 @@ class Trainer(object):
         pred_texts = []
         correct_texts = []
 
+        with open("data/category_dict.json", encoding="euc-kr") as f:
+            category_json = json.load(f)
+        category_to_id = list(category_json.keys())
+
         with torch.no_grad():
             for texts, images in pbar:
+                org_texts = [self.food_to_category[text] for text in list(texts)]
                 images = images.to(self.device, dtype=cast_dtype)
-                org_texts_id = self.text_to_id_dict[list(texts)[0]]
-                texts = self.tokenizer(self.labels).to(self.device)
+                # org_texts_id = self.text_to_id_dict[list(texts)[0]]
+                texts = self.tokenizer(category_to_id).to(self.device)
                 with autocast():
                     image_features = self.model.encode_image(images)
                     text_features = self.model.encode_text(texts)
@@ -215,14 +227,14 @@ class Trainer(object):
                 similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
                 batch_size = images.shape[0]
                 _, indices = similarity[0].topk(1)
-                correct_num += org_texts_id == indices[0].item()
                 num_samples += batch_size
                 pred_text_id = indices[0].item()
-                pred_texts.append(self.id_to_text_dict[pred_text_id])
-                correct_texts.append(self.id_to_text_dict[org_texts_id])
+                pred_texts.append(category_to_id[pred_text_id])
+                correct_texts.append(org_texts[0])
+                correct_num += org_texts[0] == category_to_id[pred_text_id]
             valid_acc = correct_num / len(eval_dataloader)
             df = pd.DataFrame({"pred_texts": pred_texts, "correct_texts": correct_texts})
-            df.to_csv(os.path.join(self.args.dataset_path, "result.csv"))
+            df.to_csv(os.path.join(self.args.dataset_path, "01181252_epochs-10_batch-16_9.csv"))
             print(f"validation acc: {valid_acc}")
             metrics.update()
 
