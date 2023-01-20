@@ -4,6 +4,7 @@ import json
 import torch
 
 from src.dataset import FoodImageDataset, get_split_dataset
+from src.embedspace import EmbedSpace
 from src.model import build_model
 from src.preprocess import image_transform
 from src.tokenizer import FoodTokenizer
@@ -50,6 +51,8 @@ def main(args):
         trainer.evaluate(mode="valid")
     if args.do_inference:
         trainer.inference(mode="valid")
+    if args.get_embed_space and args.resume:
+        EmbedSpace(args, model, dataset)
 
 
 if __name__ == "__main__":
@@ -64,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument("--do_train", default=False, type=bool)
     parser.add_argument("--do_wandb", default=False, type=bool)
     parser.add_argument("--do_eval", default=False, type=bool)
-    parser.add_argument("--do_inference", default=True, type=bool)
+    parser.add_argument("--do_inference", default=False, type=bool)
     parser.add_argument("--dataset_path", default="data", type=str)
     parser.add_argument("--train_info_file_name", default="aihub_1.0_43_0.3_train_crop.json", type=str)
     parser.add_argument("--test_info_file_name", default="aihub_1.0_43_0.3_test_crop.json", type=str)
@@ -84,6 +87,7 @@ if __name__ == "__main__":
         default="amp",
         help="Floating point precision.",
     )
+    parser.add_argument("--get_embed_space", default=True, type=bool)
 
     args = parser.parse_args()
 
