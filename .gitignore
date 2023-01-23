@@ -133,6 +133,6 @@ dmypy.json
 
 # custom
 /data
+test.ipynb
 /wandb
-aihub_train.zip
-aihub_test.zip
+/experiments
