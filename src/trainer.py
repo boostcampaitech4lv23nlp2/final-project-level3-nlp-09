@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, SequentialSampler
 from tqdm import tqdm
 
 from src.loss import ClipLoss
-from src.sampler import ContrastiveSampler
+from src.sampler import ContrastiveSampler, HardNegativeSampler
 from src.utils import get_autocast, get_cast_dtype
 
 
@@ -55,9 +55,9 @@ class HardNegativeTrainer(object):
                 },
             )
 
-        # autocast = get_autocast(self.args.precision)
-        # cast_dtype = get_cast_dtype(self.args.precision)
-        train_sampler = ContrastiveSampler(self.train_dataset)
+        autocast = get_autocast(self.args.precision)
+        cast_dtype = get_cast_dtype(self.args.precision)
+        train_sampler = HardNegativeSampler(self.train_dataset)
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size * 3, sampler=train_sampler, num_workers=self.args.num_workers
         )
@@ -83,12 +83,12 @@ class HardNegativeTrainer(object):
                 self.model.train()
                 optimizer.zero_grad()
 
-                with torch.cuda.amp.autocast():
+                with autocast():
 
                     for index in range(0, self.args.batch_size * 3, 3):
                         text = texts[index : index + 3]
                         image = images[index : index + 3]
-                        image = image.to(self.device, dtype=torch.float32)
+                        image = image.to(self.device, dtype=cast_dtype)
                         text = self.tokenizer(list(text)).to(self.device)
                         logits_per_image = self.model.encode_image(image)
                         logits_per_text = self.model.encode_text(text)
@@ -149,13 +149,13 @@ class HardNegativeTrainer(object):
                 #                    checkpoint_dict["scaler"] = scaler.state_dict()
 
                 if epoch + 1 == self.args.num_train_epochs or (
-                    self.args.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
+                    self.argcast_dtypes.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
                 ):
                     torch.save(
                         checkpoint_dict,
-                        os.path.join(self.args.checkpoint_path, f"epoch_{epoch}.pt"),
+                        os.path.join(self.args.checkpoint_path, f"{name}_{epoch}.pt"),
                     )
-                    print(f"checkpoint 'epoch_{epoch}.pt' saved")
+                    print(f"checkpoint '{name}_{epoch}.pt' saved")
 
     def evaluate(self, mode):
         if mode == "train":
