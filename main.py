@@ -7,7 +7,7 @@ from src.dataset import FoodImageDataset, get_split_dataset
 from src.model import build_model
 from src.preprocess import image_transform
 from src.tokenizer import FoodTokenizer
-from src.trainer import HardNegativeTrainer  # , Trainer
+from src.trainer import HardNegativeTrainer, Trainer
 from src.utils import set_seed
 
 # TODO: Split Dataset 방식 개선
@@ -45,7 +45,11 @@ def main(args):
 
     tokens_path = "./src/model_configs/tokens_by_length.json"
     tokenizer = FoodTokenizer(tokens_path, configs=configs)
-    trainer = HardNegativeTrainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
+    trainer = (
+        HardNegativeTrainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
+        if args.do_hard_negative
+        else Trainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
+    )
     # trainer = Trainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
 
     if args.do_train:
@@ -69,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument("--do_wandb", default=True, type=bool)
     parser.add_argument("--do_eval", default=True, type=bool)
     parser.add_argument("--do_inference", default=True, type=bool)
-    parser.add_argument("--do_hard_negative", default=True, type=bool)
+    parser.add_argument("--do_hard_negative", default=False, type=bool)
     parser.add_argument("--dataset_path", default="data", type=str)
     parser.add_argument("--train_info_file_name", default="aihub_1.0_43_0.3_train_crop.json", type=str)
     parser.add_argument("--test_info_file_name", default="aihub_1.0_43_0.3_test_crop.json", type=str)
