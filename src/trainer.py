@@ -15,6 +15,9 @@ from src.loss import ClipLoss
 from src.sampler import ContrastiveSampler, HardNegativeSampler
 from src.utils import get_autocast, get_cast_dtype
 
+# TODO: arg로 Trainer 선택하기
+# TODO: artifact 적용
+
 
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
@@ -68,8 +71,6 @@ class HardNegativeTrainer(object):
 
         scaler = torch.cuda.amp.GradScaler()
 
-        outputs_texts = []
-        outputs_images = []
         t = 0.07
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
@@ -80,11 +81,12 @@ class HardNegativeTrainer(object):
             pbar = tqdm(train_dataloader, leave=True)
 
             for texts, images in pbar:
+                outputs_texts = []
+                outputs_images = []
                 self.model.train()
                 optimizer.zero_grad()
 
                 with autocast():
-
                     for index in range(0, self.args.batch_size * 3, 3):
                         text = texts[index : index + 3]
                         image = images[index : index + 3]
@@ -96,8 +98,8 @@ class HardNegativeTrainer(object):
                         logits_per_image = logits_per_image / logits_per_image.norm(dim=1, keepdim=True)
                         logits_per_text = logits_per_text / logits_per_text.norm(dim=1, keepdim=True)
 
-                        outputs_texts.append(logits_per_text.view(1, -1))
-                        outputs_images.append(logits_per_image.view(1, -1))
+                        outputs_texts.append(logits_per_text.reshape(1, -1))
+                        outputs_images.append(logits_per_image.reshape(1, -1))
 
                     logits_per_texts = torch.cat(outputs_texts)
                     logits_per_images = torch.cat(outputs_images)
@@ -111,15 +113,15 @@ class HardNegativeTrainer(object):
                     neg_logits = torch.sum(
                         logits_per_images[:, :window] * logits_per_images[:, window * 2 : window * 3], dim=1
                     )
-                    logits = torch.cat([pos_logits.view(-1, 1), neg_logits.view(-1, 1)], dim=1)
+                    logits = torch.cat([pos_logits.reshape(-1, 1), neg_logits.reshape(-1, 1)], dim=1)
                     logits = logits / t
                     logits = torch.exp(logits)
                     logits = logits / torch.sum(logits)
-                    loss = torch.sum(-torch.log(logits[:, 0] / torch.sum(logits, dim=1))) / logits.size(0)
 
-                    total_loss = loss_func(logits_per_images[:, :window], logits_per_texts)
+                    hn_loss = torch.sum(-torch.log(logits[:, 0] / torch.sum(logits, dim=1))) / logits.size(0)
+                    loss = loss_func(logits_per_images[:, :window], logits_per_texts)
 
-                    total_loss = loss + total_loss
+                    total_loss = hn_loss + loss
                     total_data_num += len(images)
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
