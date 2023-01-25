@@ -262,7 +262,6 @@ class HardNegativeTrainer(Trainer):
         super().__init__(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
 
     def train(self):
-        print(self.model)
         if self.args.do_wandb:
             kor_time = (datetime.now() + timedelta(hours=9)).strftime("%m%d%H%M")
             name = kor_time + "_epochs-" + str(self.args.num_train_epochs) + "_batch-" + str(self.args.batch_size)
