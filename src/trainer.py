@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, SequentialSampler
 from tqdm import tqdm
 
 from src.loss import ClipLoss
-from src.sampler import ContrastiveSampler, HardNegativeSampler
+from src.sampler import CustomSampler
 from src.utils import get_autocast, get_cast_dtype
 
 # TODO: arg로 Trainer 선택하기
@@ -60,7 +60,7 @@ class HardNegativeTrainer(object):
 
         autocast = get_autocast(self.args.precision)
         cast_dtype = get_cast_dtype(self.args.precision)
-        train_sampler = HardNegativeSampler(self.train_dataset)
+        train_sampler = CustomSampler(args=self.args, dset=self.train_dataset)
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size * 3, sampler=train_sampler, num_workers=self.args.num_workers
         )
@@ -326,7 +326,7 @@ class Trainer(object):
 
         autocast = get_autocast(self.args.precision)
         cast_dtype = get_cast_dtype(self.args.precision)
-        train_sampler = ContrastiveSampler(self.train_dataset)
+        train_sampler = CustomSampler(args=self.args, dset=self.train_dataset)
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
