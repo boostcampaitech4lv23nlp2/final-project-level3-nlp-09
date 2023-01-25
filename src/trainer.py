@@ -74,7 +74,7 @@ class Trainer(object):
             total_data_num = 0
             step = len(train_dataloader) * epoch
 
-            pbar = tqdm(train_dataloader, leave=True)
+            pbar = tqdm(train_dataloader, total=len(train_dataloader) * 3, leave=True)
 
             for texts, images in pbar:
                 self.model.train()
@@ -262,7 +262,6 @@ class HardNegativeTrainer(Trainer):
         super().__init__(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
 
     def train(self):
-        print(self.model)
         if self.args.do_wandb:
             kor_time = (datetime.now() + timedelta(hours=9)).strftime("%m%d%H%M")
             name = kor_time + "_epochs-" + str(self.args.num_train_epochs) + "_batch-" + str(self.args.batch_size)
@@ -297,7 +296,7 @@ class HardNegativeTrainer(Trainer):
             total_data_num = 0
             step = len(train_dataloader) * epoch
 
-            pbar = tqdm(train_dataloader, leave=True)
+            pbar = tqdm(train_dataloader, total=len(train_dataloader) * 3, leave=True)
 
             for texts, images in pbar:
                 outputs_texts = []
@@ -306,9 +305,10 @@ class HardNegativeTrainer(Trainer):
                 optimizer.zero_grad()
 
                 with autocast():
-                    for index in range(0, self.args.batch_size * 3, 3):
-                        text = texts[index : index + 3]
-                        image = images[index : index + 3]
+                    for index in range(0, self.args.batch_size * 3, self.args.batch_size):
+                        torch.cuda.empty_cache()
+                        text = texts[index : index + self.args.batch_size]
+                        image = images[index : index + self.args.batch_size]
                         image = image.to(self.device, dtype=cast_dtype)
                         text = self.tokenizer(list(text)).to(self.device)
                         logits_per_image = self.model.encode_image(image)
@@ -317,30 +317,27 @@ class HardNegativeTrainer(Trainer):
                         logits_per_image = logits_per_image / logits_per_image.norm(dim=1, keepdim=True)
                         logits_per_text = logits_per_text / logits_per_text.norm(dim=1, keepdim=True)
 
-                        outputs_texts.append(logits_per_text.reshape(1, -1))
-                        outputs_images.append(logits_per_image.reshape(1, -1))
-
+                        outputs_texts.append(logits_per_text)
+                        outputs_images.append(logits_per_image)
                     logits_per_texts = torch.cat(outputs_texts)
                     logits_per_images = torch.cat(outputs_images)
-                    window = logits_per_texts.size(-1) // 3
 
-                    logits_per_texts = logits_per_texts[:, : logits_per_texts.size(-1) // 3]
+                    logits_per_texts = logits_per_texts.view(self.args.batch_size, 3, -1)
+                    logits_per_images = logits_per_images.view(self.args.batch_size, 3, -1)
 
-                    pos_logits = torch.sum(
-                        logits_per_images[:, :window] * logits_per_images[:, window : window * 2], dim=1
-                    )
-                    neg_logits = torch.sum(
-                        logits_per_images[:, :window] * logits_per_images[:, window * 2 : window * 3], dim=1
-                    )
-                    logits = torch.cat([pos_logits.reshape(-1, 1), neg_logits.reshape(-1, 1)], dim=1)
+                    logits_per_texts = logits_per_texts[:, 0, :]
+
+                    pos_logits = torch.sum(logits_per_images[:, 0, :] * logits_per_images[:, 1, :], dim=1)
+                    neg_logits = torch.sum(logits_per_images[:, 0, :] * logits_per_images[:, 2, :], dim=1)
+                    logits = torch.cat([pos_logits.view(-1, 1), neg_logits.view(-1, 1)], dim=1)
                     logits = logits / t
                     logits = torch.exp(logits)
                     logits = logits / torch.sum(logits)
+                    loss = torch.sum(-torch.log(logits[:, 0] / torch.sum(logits, dim=1))) / logits.size(0)
 
-                    hn_loss = torch.sum(-torch.log(logits[:, 0] / torch.sum(logits, dim=1))) / logits.size(0)
-                    loss = loss_func(logits_per_images[:, :window], logits_per_texts)
+                    total_loss = loss_func(logits_per_images[:, 0, :], logits_per_texts)
 
-                    total_loss = hn_loss + loss
+                    total_loss = loss.item() + total_loss
                     total_data_num += len(images)
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
@@ -370,7 +367,7 @@ class HardNegativeTrainer(Trainer):
                 #                    checkpoint_dict["scaler"] = scaler.state_dict()
 
                 if epoch + 1 == self.args.num_train_epochs or (
-                    self.argcast_dtypes.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
+                    self.args.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
                 ):
                     model_name = f"{name}_{epoch}.pt"
 

@@ -60,7 +60,7 @@ class CustomSampler(Sampler):
 
         indicies = []
         self.ind_step = self.cls_indicies[0]
-        total_dataset_length = len(self.dset)
+
         for _ in range(len(self.dset)):
             cls_ind = self.cls_indicies[self.ind_step % len(self.cls)]
             cls_ind = self.cls_matcher[cls_ind]
@@ -83,9 +83,8 @@ class CustomSampler(Sampler):
                     cls_idx = random.choice(self.cls_class[self.food_to_category[cls_ind]])
 
                 indicies.append(cls_idx)
-                total_dataset_length = total_dataset_length * 3
 
-        assert len(indicies) == total_dataset_length
+        assert len(indicies) == len(self.dset) * 3 if self.do_hard_negative else len(self.dset)
         assert len(self.cls) == len(set([self.dset.data[idx]["category_id"] for idx in indicies]))
         return iter(indicies)
 
