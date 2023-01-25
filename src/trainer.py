@@ -8,11 +8,11 @@ import torch
 import torch.optim as optim
 import wandb
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, SequentialSampler
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.loss import ClipLoss
-from src.sampler import ContrastiveSampler, HardNegativeSampler
+from src.sampler import CustomSampler
 from src.utils import get_autocast, get_cast_dtype
 
 
@@ -57,7 +57,7 @@ class Trainer(object):
 
         autocast = get_autocast(self.args.precision)
         cast_dtype = get_cast_dtype(self.args.precision)
-        train_sampler = ContrastiveSampler(self.train_dataset)
+        train_sampler = CustomSampler(do_hard_negative=self.args.do_hard_negative, dset=self.train_dataset)
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
@@ -115,11 +115,18 @@ class Trainer(object):
                 if epoch + 1 == self.args.num_train_epochs or (
                     self.args.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
                 ):
+                    model_name = f"{name}_{epoch}.pt"
+
                     torch.save(
                         checkpoint_dict,
-                        os.path.join(self.args.checkpoint_path, f"epoch_{epoch}.pt"),
+                        os.path.join(self.args.checkpoint_path, model_name),
                     )
-                    print(f"checkpoint 'epoch_{epoch}.pt' saved")
+                    print(f"checkpoint {model_name} saved")
+
+                    if self.args.do_wandb:
+                        model_artifact = wandb.Artifact(model_name, type="model")
+                        model_artifact.add_file("src/output/" + model_name)
+                        wandb.log_artifact(model_artifact)
 
     def evaluate(self, mode):
         if mode == "train":
@@ -128,7 +135,7 @@ class Trainer(object):
             dataset = self.valid_dataset
         elif mode == "test":
             dataset = self.test_dataset
-        eval_sampler = SequentialSampler(dataset)
+        eval_sampler = CustomSampler(dset=dataset)
         metrics = {}
         self.model.eval()
         eval_dataloader = DataLoader(dataset, self.args.eval_batch_size, sampler=eval_sampler)
@@ -189,7 +196,7 @@ class Trainer(object):
             dataset = self.valid_dataset
         elif mode == "test":
             dataset = self.test_dataset
-        eval_sampler = SequentialSampler(dataset)
+        eval_sampler = CustomSampler(dset=dataset)
         metrics = {}
         self.model.eval()
         eval_dataloader = DataLoader(dataset, 1, sampler=eval_sampler)
@@ -272,7 +279,7 @@ class HardNegativeTrainer(Trainer):
 
         autocast = get_autocast(self.args.precision)
         cast_dtype = get_cast_dtype(self.args.precision)
-        train_sampler = HardNegativeSampler(self.train_dataset)
+        train_sampler = CustomSampler(do_hard_negative=self.args.do_hard_negative, dset=self.train_dataset)
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size * 3, sampler=train_sampler, num_workers=self.args.num_workers
         )
@@ -365,8 +372,15 @@ class HardNegativeTrainer(Trainer):
                 if epoch + 1 == self.args.num_train_epochs or (
                     self.argcast_dtypes.save_frequency > 0 and ((epoch + 1) % self.args.save_frequency) == 0
                 ):
+                    model_name = f"{name}_{epoch}.pt"
+
                     torch.save(
                         checkpoint_dict,
-                        os.path.join(self.args.checkpoint_path, f"{name}_{epoch}.pt"),
+                        os.path.join(self.args.checkpoint_path, model_name),
                     )
-                    print(f"checkpoint '{name}_{epoch}.pt' saved")
+                    print(f"checkpoint {model_name} saved")
+
+                    if self.args.do_wandb:
+                        model_artifact = wandb.Artifact(model_name, type="model")
+                        model_artifact.add_file("src/output/" + model_name)
+                        wandb.log_artifact(model_artifact)

@@ -3,15 +3,12 @@ import json
 
 import torch
 
-from src.dataset import FoodImageDataset, get_split_dataset
+from src.dataset import FoodImageDataset
 from src.model import build_model
 from src.preprocess import image_transform
 from src.tokenizer import FoodTokenizer
 from src.trainer import HardNegativeTrainer, Trainer
 from src.utils import set_seed
-
-# TODO: Split Dataset 방식 개선
-# TODO: HardNegative Mode Argument 추가
 
 
 def main(args):
@@ -39,9 +36,9 @@ def main(args):
         # if scaler is not None and 'scaler' in checkpoint:
         #    scaler.load_state_dict(checkpoint['scaler'])
         print(f"=> from resuming checkpoint '{args.resume}' ")
-    train_dataset = FoodImageDataset(args, preprocess, mode="train")
-    dataset = FoodImageDataset(args, preprocess, mode="test")
-    valid_dataset, test_dataset = get_split_dataset(dataset, 0.01)
+    train_dataset = FoodImageDataset(args, preprocess, mode="train", ratio=1)
+    valid_dataset = FoodImageDataset(args, preprocess, mode="test", ratio=0.01)
+    test_dataset = FoodImageDataset(args, preprocess, mode="test", ratio=1)
 
     tokens_path = "./src/model_configs/tokens_by_length.json"
     tokenizer = FoodTokenizer(tokens_path, configs=configs)
