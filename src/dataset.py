@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, random_split
 
 
 class FoodImageDataset(Dataset):
-    def __init__(self, args, transforms, mode="train"):
+    def __init__(self, args, transforms, mode="train", ratio=1):
         self.args = args
         self.dataset_path = self.args.dataset_path
         self.dataset_mode = "train" if mode == "train" else "test"
@@ -21,11 +21,15 @@ class FoodImageDataset(Dataset):
         self.train_data = None
         self.id_to_text_dict = None
         self.text_to_id_dict = None
+        self.ratio = ratio
+
+        if self.ratio <= 0 or self.ratio > 1:
+            raise Exception("ratio MUST BE BETWEEN 0 & 1")
 
         if mode == "train":
-            self.labels, self.data = self.get_dataset(self.labels_file_path, self.train_file_path)
+            self.labels, self.data = self._get_dataset(self.labels_file_path, self.train_file_path, self.ratio)
         elif mode == "test":
-            self.labels, self.data = self.get_dataset(self.labels_file_path, self.test_file_path)
+            self.labels, self.data = self._get_dataset(self.labels_file_path, self.test_file_path, self.ratio)
 
         self.id_to_text_dict = self.get_id_to_text(self.labels)
         self.text_to_id_dict = self.get_text_to_id(self.labels)
@@ -37,7 +41,7 @@ class FoodImageDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def get_dataset(self, labels_file_path, data_file_path):
+    def _get_dataset(self, labels_file_path, data_file_path, ratio):
         with open(labels_file_path, "r") as file:
             labels = json.load(file)
             labels = labels["categories"]
@@ -45,6 +49,9 @@ class FoodImageDataset(Dataset):
         with open(data_file_path, "r") as file:
             data = json.load(file)
             data = data["images"]
+
+        if ratio < 1:
+            data = data[: int(len(data) * ratio)]
 
         return labels, data
 
