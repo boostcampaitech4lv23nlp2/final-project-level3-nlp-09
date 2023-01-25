@@ -1,17 +1,20 @@
+import json
+import random
+from collections import defaultdict
+
 import numpy as np
 import torch
 from torch.utils.data.sampler import Sampler
 
-# TODO: 데이터에서 뽑을 수 있게끔 수정
 
-
-class ContrastiveSampler(Sampler):
-    def __init__(self, dset, shuffle: bool = True, seed: int = 42, oversample=False):
+class CustomSampler(Sampler):
+    def __init__(self, dset, do_hard_negative: bool = False, shuffle: bool = True, seed: int = 42, oversample=False):
         self.dset = dset
         self.shuffle = shuffle
         self.seed = seed
         self.ind_cls = 0
         self.epoch = 0
+        self.do_hard_negative = do_hard_negative
 
         self.cls = {}
         for ind, data in enumerate(self.dset.data):
@@ -20,6 +23,15 @@ class ContrastiveSampler(Sampler):
                 self.cls[label].append(ind)
             else:
                 self.cls[label] = [ind]
+
+        if self.do_hard_negative:
+            self.cls_class = defaultdict(list)
+            with open("./food_id_to_category_id.json") as f:
+                self.food_to_category = json.load(f)
+            self.food_to_category = {int(k): int(v) for k, v in self.food_to_category.items()}
+
+            for key in self.cls.keys():
+                self.cls_class[self.food_to_category[key]].extend(self.cls[key])
 
         self.cls_inds = [0 for _ in range(len(self.cls))]
         self.max_n_sample = max([len(samples) for _, samples in self.cls.items()])
@@ -48,6 +60,7 @@ class ContrastiveSampler(Sampler):
 
         indicies = []
         self.ind_step = self.cls_indicies[0]
+        total_dataset_length = len(self.dset)
         for _ in range(len(self.dset)):
             cls_ind = self.cls_indicies[self.ind_step % len(self.cls)]
             cls_ind = self.cls_matcher[cls_ind]
@@ -58,7 +71,21 @@ class ContrastiveSampler(Sampler):
             self.cls_inds[cls_ind] += 1
             indicies.append(index)
 
-        assert len(indicies) == len(self.dset)
+            if self.do_hard_negative:
+                cls_index = random.choice(self.cls[cls_ind])
+                while index == cls_index:
+                    cls_index = random.choice(self.cls[cls_ind])
+                indicies.append(cls_index)
+
+                cls_idx = random.choice(self.cls_class[self.food_to_category[cls_ind]])
+
+                while index == cls_index or cls_ind == self.dset.data[cls_idx]["category_id"]:
+                    cls_idx = random.choice(self.cls_class[self.food_to_category[cls_ind]])
+
+                indicies.append(cls_idx)
+                total_dataset_length = total_dataset_length * 3
+
+        assert len(indicies) == total_dataset_length
         assert len(self.cls) == len(set([self.dset.data[idx]["category_id"] for idx in indicies]))
         return iter(indicies)
 
