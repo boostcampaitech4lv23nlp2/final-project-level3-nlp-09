@@ -57,7 +57,7 @@ def main(args):
     if args.do_inference:
         trainer.inference(mode="valid")
     if args.get_embed_space and args.resume:
-        EmbedSpace(args, model, dataset)
+        EmbedSpace(args, model, test_dataset)
 
 
 if __name__ == "__main__":
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         default="amp",
         help="Floating point precision.",
     )
-    parser.add_argument("--get_embed_space", default=True, type=bool)
+    parser.add_argument("--get_embed_space", default=False, type=bool)
 
     args = parser.parse_args()
 
