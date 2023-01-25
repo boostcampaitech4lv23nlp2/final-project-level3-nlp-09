@@ -69,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--do_wandb", default=True, type=bool)
     parser.add_argument("--do_eval", default=True, type=bool)
     parser.add_argument("--do_inference", default=True, type=bool)
+    parser.add_argument("--do_hard_negative", default=True, type=bool)
     parser.add_argument("--dataset_path", default="data", type=str)
     parser.add_argument("--train_info_file_name", default="aihub_1.0_43_0.3_train_crop.json", type=str)
     parser.add_argument("--test_info_file_name", default="aihub_1.0_43_0.3_test_crop.json", type=str)
