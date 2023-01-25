@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data.sampler import Sampler
 
-# TODO: 데이터에서 뽑을 수 있게끔 수정
+# TODO: 기존꺼 유지 후 방식을 arg로 받아서 if로 처리 하기
 
 
 class HardNegativeSampler(Sampler):

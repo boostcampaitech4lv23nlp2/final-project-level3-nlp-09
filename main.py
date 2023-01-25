@@ -10,6 +10,9 @@ from src.tokenizer import FoodTokenizer
 from src.trainer import HardNegativeTrainer  # , Trainer
 from src.utils import set_seed
 
+# TODO: Split Dataset 방식 개선
+# TODO: HardNegative Mode Argument 추가
+
 
 def main(args):
 
@@ -43,6 +46,7 @@ def main(args):
     tokens_path = "./src/model_configs/tokens_by_length.json"
     tokenizer = FoodTokenizer(tokens_path, configs=configs)
     trainer = HardNegativeTrainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
+    # trainer = Trainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
 
     if args.do_train:
         trainer.train()
