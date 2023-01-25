@@ -14,7 +14,7 @@ from src.tokenizer import FoodTokenizer
 from src.utils import set_seed
 
 
-def inference(args):
+def category_inference(args):
 
     with open("src/model_configs/baseline.json") as f:
         configs = json.load(f)

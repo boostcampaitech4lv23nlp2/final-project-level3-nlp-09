@@ -3,8 +3,8 @@ import json
 
 import torch
 
+from src.category_inference import category_inference
 from src.dataset import FoodImageDataset
-from src.inference import inference
 from src.model import build_model
 from src.preprocess import image_transform
 from src.tokenizer import FoodTokenizer
@@ -57,7 +57,7 @@ def main(args):
     if args.do_inference:
         trainer.inference(mode="valid")
     if args.do_category_inference:
-        inference(args)
+        category_inference(args)
 
 
 if __name__ == "__main__":
@@ -69,11 +69,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_train_epochs", default=10, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
-    parser.add_argument("--do_train", default=True, type=bool)
-    parser.add_argument("--do_wandb", default=True, type=bool)
-    parser.add_argument("--do_eval", default=True, type=bool)
-    parser.add_argument("--do_inference", default=True, type=bool)
-    parser.add_argument("--do_hard_negative", default=True, type=bool)
+    parser.add_argument("--do_train", default=False, type=bool)
+    parser.add_argument("--do_wandb", default=False, type=bool)
+    parser.add_argument("--do_eval", default=False, type=bool)
+    parser.add_argument("--do_inference", default=False, type=bool)
+    parser.add_argument("--do_hard_negative", default=False, type=bool)
     parser.add_argument("--do_category_inference", default=True, type=bool)
     parser.add_argument("--dataset_path", default="data", type=str)
     parser.add_argument("--train_info_file_name", default="aihub_1.0_43_0.3_train_crop.json", type=str)
@@ -82,7 +82,9 @@ if __name__ == "__main__":
     parser.add_argument("--save_logs", default=True, type=bool)
     parser.add_argument("--save_frequency", default=5, type=int)
     parser.add_argument("--checkpoint_path", default="src/output", type=str)
-    parser.add_argument("--resume", default=None, type=str, help="path to latest checkpoint (default: None)")
+    parser.add_argument(
+        "--resume", default="src/output/epoch_9.pt", type=str, help="path to latest checkpoint (default: None)"
+    )
     parser.add_argument(
         "--category_resume",
         default="src/output/category16.pt",
