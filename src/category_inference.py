@@ -3,7 +3,9 @@ import os
 
 import pandas as pd
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
+from torchvision import models
 from tqdm import tqdm
 
 from src.dataset import FoodImageDataset
@@ -31,7 +33,11 @@ def category_inference(args):
 
     preprocess = image_transform(vision_cfg["image_size"], is_train=True)
     clip_model = build_model(vision_cfg, text_cfg)
-    category_model = build_model(vision_cfg, text_cfg)
+
+    category_model = models.resnet50(pretrained=True)
+    num_features = category_model.fc.in_features
+    num_classes = 16
+    category_model.fc = nn.Linear(num_features, num_classes)
 
     if args.resume is not None:
         checkpoint = torch.load(args.resume, map_location="cpu")
@@ -79,11 +85,8 @@ def category_inference(args):
             org_text = list(texts)[0]
             images = images.to(device)
             texts = tokenizer(category_to_id).to(device)
-            image_features = category_model.encode_image(images)
-            text_features = category_model.encode_text(texts)
-            image_features = image_features / image_features.norm(dim=1, keepdim=True)
-            text_features = text_features / text_features.norm(dim=1, keepdim=True)
-            similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
+            category_probs = category_model(images)
+            similarity = category_probs.softmax(dim=-1)
             batch_size = images.shape[0]
             _, indices = similarity[0].topk(1)
             num_samples += batch_size
@@ -111,5 +114,5 @@ def category_inference(args):
             correct_texts.append(org_text)
         valid_acc = correct_num / len(eval_dataloader)
         df = pd.DataFrame({"pred_texts": pred_texts, "correct_texts": correct_texts})
-        df.to_csv(os.path.join(args.dataset_path, "two_stepresult.csv"))
+        df.to_csv(os.path.join(args.dataset_path, "two_step_result.csv"))
         print(f"validation acc: {valid_acc}")

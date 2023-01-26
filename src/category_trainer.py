@@ -5,14 +5,12 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 import torch.optim as optim
 import wandb
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from tqdm import tqdm
 
-from src.loss import ClipLoss
-from src.sampler import CategoryContrastiveSampler
 from src.utils import get_autocast, get_cast_dtype
 
 
@@ -47,7 +45,14 @@ class Trainer(object):
     def train(self):
         if self.args.do_wandb:
             kor_time = (datetime.now() + timedelta(hours=9)).strftime("%m%d%H%M")
-            name = kor_time + "_epochs-" + str(self.args.num_train_epochs) + "_batch-" + str(self.args.batch_size)
+            name = (
+                "category"
+                + kor_time
+                + "_epochs-"
+                + str(self.args.num_train_epochs)
+                + "_batch-"
+                + str(self.args.batch_size)
+            )
             wandb.init(
                 project="FOOD CLIP",
                 entity="ecl-mlstudy",
@@ -61,16 +66,24 @@ class Trainer(object):
 
         autocast = get_autocast(self.args.precision)
         cast_dtype = get_cast_dtype(self.args.precision)
-        train_sampler = CategoryContrastiveSampler(self.train_dataset)
+        train_sampler = RandomSampler(self.train_dataset)
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
         total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
         scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-5, total_steps=total_steps)
-        loss_func = ClipLoss()
+        loss_func = nn.CrossEntropyLoss()
 
         scaler = torch.cuda.amp.GradScaler()
+
+        with open("data/category_dict.json", "r", encoding="euc-kr") as f:
+            category_dict_json = json.load(f)
+
+        with open("data/food_to_category.json", "r") as f:
+            food_to_category = json.load(f)
+        category_labels = list(category_dict_json.keys())
+        category_idx_dict = {key: idx for idx, key in enumerate(category_labels)}
 
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
@@ -81,27 +94,28 @@ class Trainer(object):
             pbar = tqdm(train_dataloader, leave=True)
 
             for texts, images in pbar:
-                texts = [self.food_to_category[text] for text in list(texts)]
+
                 self.model.train()
                 optimizer.zero_grad()
                 with autocast():
+                    categories = [food_to_category[text] for text in list(texts)]
+                    labels = torch.tensor([category_idx_dict[category] for category in categories]).to(self.device)
                     images = images.to(self.device, dtype=cast_dtype)
-                    texts = self.tokenizer(texts).to(self.device)
-                    logits_per_image, logits_per_text = self.model(images, texts)
-                    total_loss = loss_func(logits_per_image, logits_per_text)
+                    probs = self.model(images)
+                    loss = loss_func(probs, labels)
                     total_data_num += len(images)
-                scaler.scale(total_loss).backward()
+                scaler.scale(loss).backward()
                 scaler.step(optimizer)
 
                 scaler.update()
                 step += 1
-                train_loss += total_loss.item()
+                train_loss += loss.item()
                 scheduler.step()
 
-                pbar.set_description(f"epoch: {epoch}/ train loss: {total_loss.item()}")
+                pbar.set_description(f"epoch: {epoch}/ train loss: {loss.item()}")
 
                 if self.args.do_wandb:
-                    wandb.log({"train_loss": total_loss.item(), "train_epoch": epoch, "lr": get_lr(optimizer)})
+                    wandb.log({"train_loss": loss.item(), "train_epoch": epoch, "lr": get_lr(optimizer)})
             train_loss /= step
             print(f"epoch: {epoch} train loss: {train_loss}")
 
@@ -122,7 +136,7 @@ class Trainer(object):
                 ):
                     torch.save(
                         checkpoint_dict,
-                        os.path.join(self.args.checkpoint_path, f"epoch_{epoch}.pt"),
+                        os.path.join(self.args.checkpoint_path, f"category_epoch_{epoch}.pt"),
                     )
                     print(f"checkpoint 'epoch_{epoch}.pt' saved")
 
@@ -133,49 +147,42 @@ class Trainer(object):
             dataset = self.valid_dataset
         elif mode == "test":
             dataset = self.test_dataset
-        # eval_sampler = SequentialSampler(dataset)
-        eval_sampler = CategoryContrastiveSampler(dataset)
+        eval_sampler = SequentialSampler(dataset)
         metrics = {}
         self.model.eval()
         eval_dataloader = DataLoader(dataset, self.args.eval_batch_size, sampler=eval_sampler)
         autocast = get_autocast(self.args.precision)
         cast_dtype = get_cast_dtype(self.args.precision)
-        all_image_features, all_text_features = [], []
         cumulative_loss = 0.0
         num_samples = 0
+        loss_func = nn.CrossEntropyLoss()
+
+        with open("data/category_dict.json", "r", encoding="euc-kr") as f:
+            category_dict_json = json.load(f)
+        category_labels = list(category_dict_json.keys())
+        category_idx_dict = {key: idx for idx, key in enumerate(category_labels)}
+        with open("data/food_to_category.json", "r") as f:
+            food_to_category = json.load(f)
 
         pbar = tqdm(eval_dataloader, leave=True)
         valid_acc = 0
 
         with torch.no_grad():
             for texts, images in pbar:
-                texts = [self.food_to_category[text] for text in list(texts)]
-                images = images.to(self.device, dtype=cast_dtype)
-                texts = self.tokenizer(texts).to(self.device)
                 with autocast():
-                    image_features = self.model.encode_image(images)
-                    text_features = self.model.encode_text(texts)
-                    logit_scale = self.model.logit_scale.exp()
-
-                    all_image_features.append(image_features)
-                    all_text_features.append(text_features)
-
-                    image_features = image_features / image_features.norm(dim=1, keepdim=True)
-                    text_features = text_features / text_features.norm(dim=1, keepdim=True)
-
-                    logits_per_image = logit_scale * image_features @ text_features.t()
-                    logits_per_text = logits_per_image.t()
+                    categories = [food_to_category[text] for text in list(texts)]
+                    labels = torch.tensor([category_idx_dict[category] for category in categories]).to(self.device)
+                    images = images.to(self.device, dtype=cast_dtype)
+                    probs = self.model(images)
+                    loss = loss_func(probs, labels)
+                    _, preds = torch.max(probs, 1)
                     batch_size = images.shape[0]
-                    labels = torch.arange(batch_size, device=self.device).long()
-                    total_loss = (
-                        F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)
-                    ) / 2
-                    _, preds = torch.max(logits_per_image, 1)
+
                     valid_acc += torch.sum(preds.cpu() == labels.cpu()) / batch_size
-                cumulative_loss += total_loss * batch_size
+                cumulative_loss += loss * batch_size
                 num_samples += batch_size
 
-                pbar.set_description(f"validation loss: {total_loss.item()}")
+                pbar.set_description(f"validation loss: {loss.item()}")
             """val_metrics = self.get_metrics(
                 image_features=torch.cat(all_image_features),
                 text_features=torch.cat(all_text_features),
@@ -196,7 +203,7 @@ class Trainer(object):
             dataset = self.valid_dataset
         elif mode == "test":
             dataset = self.test_dataset
-        eval_sampler = CategoryContrastiveSampler(dataset)
+        eval_sampler = SequentialSampler(dataset)
         metrics = {}
         self.model.eval()
         eval_dataloader = DataLoader(dataset, 1, sampler=eval_sampler)
