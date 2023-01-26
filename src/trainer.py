@@ -61,7 +61,10 @@ class Trainer(object):
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size, sampler=train_sampler, num_workers=self.args.num_workers
         )
-        total_steps = len(train_dataloader) * self.args.num_train_epochs
+        if self.args.do_hard_negative:
+            total_steps = (len(train_dataloader) * self.args.num_train_epochs) * 3
+        else:
+            total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
         scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-5, total_steps=total_steps)
         loss_func = ClipLoss()
@@ -282,7 +285,10 @@ class HardNegativeTrainer(Trainer):
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size * 3, sampler=train_sampler, num_workers=self.args.num_workers
         )
-        total_steps = len(train_dataloader) * self.args.num_train_epochs
+        if self.args.do_hard_negative:
+            total_steps = (len(train_dataloader) * self.args.num_train_epochs) * 3
+        else:
+            total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
         scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-5, total_steps=total_steps)
         loss_func = ClipLoss()
