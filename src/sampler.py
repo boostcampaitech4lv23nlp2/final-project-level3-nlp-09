@@ -23,7 +23,11 @@ class CustomSampler(Sampler):
                 self.cls[label].append(ind)
             else:
                 self.cls[label] = [ind]
-
+        """
+        for i in range(max(self.cls)):
+            if i not in self.cls:
+                self.cls[i] = []
+        """
         if self.do_hard_negative:
             self.cls_class = defaultdict(list)
             with open("./food_id_to_category_id.json") as f:
@@ -33,7 +37,7 @@ class CustomSampler(Sampler):
             for key in self.cls.keys():
                 self.cls_class[self.food_to_category[key]].extend(self.cls[key])
 
-        self.cls_inds = [0 for _ in range(len(self.cls))]
+        self.cls_inds = [0 for _ in range(max(self.cls) + 1)]
         self.max_n_sample = max([len(samples) for _, samples in self.cls.items()])
         for label, samples in self.cls.items():
             if oversample:
@@ -41,7 +45,7 @@ class CustomSampler(Sampler):
                 self.cls[label].extend(samples[:pad_size])
 
         self.cls_indicies = list(self.cls.keys())
-        self.cls_matcher = {idx: idx for idx in range(len(self.cls_inds))}
+        self.cls_matcher = {idx: idx for idx in range(max(self.cls) + 1)}
 
     def __iter__(self):
         if self.shuffle:
@@ -63,27 +67,28 @@ class CustomSampler(Sampler):
         for _ in range(len(self.dset)):
             cls_ind = self.cls_indicies[self.ind_step % len(self.cls)]
             cls_ind = self.cls_matcher[cls_ind]
-            smp_ind = self.cls_inds[cls_ind] % len(self.cls[cls_ind])
-            index = self.cls[cls_ind][smp_ind]
+            if len(self.cls[cls_ind]):
+                smp_ind = self.cls_inds[cls_ind] % len(self.cls[cls_ind])
+                index = self.cls[cls_ind][smp_ind]
 
-            self.ind_step += 1
-            self.cls_inds[cls_ind] += 1
-            indicies.append(index)
+                self.ind_step += 1
+                self.cls_inds[cls_ind] += 1
+                indicies.append(index)
 
-            if self.do_hard_negative:
-                cls_index = random.choice(self.cls[cls_ind])
-                while index == cls_index:
+                if self.do_hard_negative:
                     cls_index = random.choice(self.cls[cls_ind])
-                indicies.append(cls_index)
+                    while index == cls_index:
+                        cls_index = random.choice(self.cls[cls_ind])
+                    indicies.append(cls_index)
 
-                cls_idx = random.choice(self.cls_class[self.food_to_category[cls_ind]])
-
-                while index == cls_index or cls_ind == self.dset.data[cls_idx]["category_id"]:
                     cls_idx = random.choice(self.cls_class[self.food_to_category[cls_ind]])
 
-                indicies.append(cls_idx)
+                    while index == cls_index or cls_ind == self.dset.data[cls_idx]["category_id"]:
+                        cls_idx = random.choice(self.cls_class[self.food_to_category[cls_ind]])
 
-        assert len(indicies) == len(self.dset) * 3 if self.do_hard_negative else len(self.dset)
+                    indicies.append(cls_idx)
+
+        assert len(indicies) == (len(self.dset) * 3 if self.do_hard_negative else len(self.dset))
         assert len(self.cls) == len(set([self.dset.data[idx]["category_id"] for idx in indicies]))
         return iter(indicies)
 

@@ -5,6 +5,7 @@ import torch
 
 from src.category_inference import category_inference
 from src.dataset import FoodImageDataset
+from src.embedspace import EmbedSpace
 from src.model import build_model
 from src.preprocess import image_transform
 from src.tokenizer import FoodTokenizer
@@ -58,6 +59,8 @@ def main(args):
         trainer.inference(mode="valid")
     if args.do_category_inference:
         category_inference(args)
+    if args.get_embed_space and args.resume:
+        EmbedSpace(args, model, test_dataset)
 
 
 if __name__ == "__main__":
@@ -65,7 +68,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--seed", default=200, type=int)
     parser.add_argument("--learning_rate", default=5e-5, type=float)
-    parser.add_argument("--eval_batch_size", default=368, type=int)
+    parser.add_argument("--eval_batch_size", default=64, type=int)
     parser.add_argument("--num_train_epochs", default=10, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
@@ -100,6 +103,7 @@ if __name__ == "__main__":
         default="amp",
         help="Floating point precision.",
     )
+    parser.add_argument("--get_embed_space", default=False, type=bool)
 
     args = parser.parse_args()
 
