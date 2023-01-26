@@ -1,0 +1,17 @@
+{
+    "info": {
+      "description": "aihub:1.0 - Nuvi modified 400 classes AIHUB.",
+      "version": "1.0",
+      "date": "2022-05-13",
+      "contributor": "Luca Medeiros",
+      "food_structure_version": 0.0
+    },
+    "images": [
+      {
+          "file_name": "/home/ubuntu/.hubapi/datasets/crops/가자미전/1_가자미전_07_071_07011001_160298971793943_1.jpg",
+          "id": 329824,
+          "category_id": 1,
+          "date": "2022-11-29 14:09:08.029536"
+      }
+    ]
+}

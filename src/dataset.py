@@ -2,7 +2,7 @@ import json
 import os
 
 from PIL import Image
-from torch.utils.data import Dataset, random_split
+from torch.utils.data import Dataset
 
 
 class FoodImageDataset(Dataset):
@@ -24,7 +24,7 @@ class FoodImageDataset(Dataset):
         self.ratio = ratio
 
         if self.ratio <= 0 or self.ratio > 1:
-            raise Exception("ratio MUST BE BETWEEN 0 & 1")
+            raise ValueError("ratio MUST BE BETWEEN 0 & 1")
 
         if mode == "train":
             self.labels, self.data = self._get_dataset(self.labels_file_path, self.train_file_path, self.ratio)
@@ -73,10 +73,3 @@ class FoodImageDataset(Dataset):
         image = Image.open(file_path)
         image = self.transforms(image)
         return text, image
-
-
-def get_split_dataset(dataset, ratio):
-    dataset_a_len = int(len(dataset) * ratio)
-    dataset_b_len = int(len(dataset) - dataset_a_len)
-    dataset_a, dataset_b = random_split(dataset, [dataset_a_len, dataset_b_len])
-    return dataset_a, dataset_b
