@@ -40,7 +40,7 @@ class CustomSampler(Sampler):
             g.manual_seed(self.seed)
 
             self.cls = self.shuffle_cls(g, cls=self.cls)
-            self.cls_matcher = self.shuffle_cls_matcher(g, self.cls_inds, self.cls_matcher)
+            self.cls_matcher = self.shuffle_cls_matcher(g, self.cls_matcher)
 
         self.ind_step = self.cls_indicies[0]
         indicies = self.get_indicies(
@@ -48,7 +48,6 @@ class CustomSampler(Sampler):
             self.cls_indicies,
             self.ind_step,
             self.cls,
-            self.cls_inds,
             self.food_to_category,
             self.cls_class,
             self.cls_matcher,
@@ -81,7 +80,7 @@ class CustomSampler(Sampler):
     def get_food_to_category(self):
         with open("./food_id_to_category_id.json") as f:
             food_to_category = json.load(f)
-            food_to_category = {int(k): int(v) for k, v in food_to_category.items()}
+        food_to_category = {int(k): int(v) for k, v in food_to_category.items()}
 
         return food_to_category
 
@@ -102,19 +101,19 @@ class CustomSampler(Sampler):
 
         return new_cls
 
-    def shuffle_cls_matcher(self, g, cls_inds, cls_matcher):
+    def shuffle_cls_matcher(self, g, cls_matcher):
         new_cls_matcher = {key: cls_matcher[key] for key in cls_matcher}
 
         if self.epoch != 0:
-            cls_inds = np.arange(0, len(cls_inds))
-            cls_inds = cls_inds[torch.randperm(len(cls_inds), generator=g).tolist()]
-            new_cls_matcher = {idx: cls_inds[idx] for idx in range(len(cls_inds))}
+            self.cls_inds = np.arange(0, len(self.cls_inds))
+            self.cls_inds = self.cls_inds[torch.randperm(len(self.cls_inds), generator=g).tolist()]
+            new_cls_matcher = {idx: self.cls_inds[idx] for idx in range(len(self.cls_inds))}
         self.epoch += 1
 
         return new_cls_matcher
 
     def get_indicies(
-        self, dset, cls_indicies, ind_step, cls, cls_inds, food_to_category, cls_class, cls_matcher, do_hard_negative
+        self, dset, cls_indicies, ind_step, cls, food_to_category, cls_class, cls_matcher, do_hard_negative
     ):
         indicies = []
 
@@ -122,30 +121,30 @@ class CustomSampler(Sampler):
             cls_ind = cls_indicies[ind_step % len(cls)]
             cls_ind = cls_matcher[cls_ind]
             if len(cls[cls_ind]):
-                smp_ind = cls_inds[cls_ind] % len(cls[cls_ind])
+                smp_ind = self.cls_inds[cls_ind] % len(cls[cls_ind])
                 index = cls[cls_ind][smp_ind]
 
                 ind_step += 1
-                cls_inds[cls_ind] += 1
+                self.cls_inds[cls_ind] += 1
                 indicies.append(index)
 
                 if do_hard_negative:
-                    indicies = self.get_hard_negative(indicies, cls, cls_ind, index, cls_class, food_to_category, dset)
+                    self.get_hard_negative(indicies, cls, cls_ind, index, cls_class, food_to_category, dset)
 
         return indicies
 
     def get_hard_negative(self, indicies, cls, cls_ind, index, cls_class, food_to_category, dset):
-        new_indicies = indicies[:]
+        # new_indicies = indicies[:]
         cls_index = random.choice(cls[cls_ind])
         while index == cls_index:
             cls_index = random.choice(cls[cls_ind])
-        new_indicies.append(cls_index)
+        indicies.append(cls_index)
 
         cls_idx = random.choice(cls_class[food_to_category[cls_ind]])
 
         while index == cls_index or cls_ind == dset.data[cls_idx]["category_id"]:
             cls_idx = random.choice(cls_class[food_to_category[cls_ind]])
 
-        new_indicies.append(cls_idx)
+        indicies.append(cls_idx)
 
-        return new_indicies
+        return indicies
