@@ -61,10 +61,6 @@ class FoodImageDataset(Dataset):
     def get_text_to_id(self, label_data):
         return {item["label"]: item["id"] for item in label_data}
 
-    def transform_func(self, examples):
-        examples["image"] = [self.preprocess(image) for image in examples["image"]]
-        return examples
-
     def __getitem__(self, idx):
         text_id = self.data[idx]["category_id"]
         text = self.id_to_text_dict[text_id]

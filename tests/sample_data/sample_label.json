@@ -5,6 +5,12 @@
       "label": "가자미전",
       "class": null,
       "description": null
+    },
+    {
+      "id": 2,
+      "label": "가자미조림",
+      "class": null,
+      "description": null
     }
   ]
 }
