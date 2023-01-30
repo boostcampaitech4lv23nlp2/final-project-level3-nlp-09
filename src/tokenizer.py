@@ -104,7 +104,7 @@ class FoodTokenizer:
         ids = []
         max_length = self.configs["text_cfg"]["context_length"] if self.configs else 0
         for name in names:
-            if hasattr(name, "patterns"):
+            if hasattr(self, "patterns"):
                 name = re.sub(self.patterns, "", name)
             if name not in self.cache:
                 tokens = self.priority(self.filter(self.v2(name)))[0]
