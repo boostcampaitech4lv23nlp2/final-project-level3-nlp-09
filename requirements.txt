@@ -4,3 +4,4 @@ tqdm>=4.62.1
 numpy==1.24.0
 datasets==2.7.1
 wandb==0.13.7
+ftfy==6.1.1
