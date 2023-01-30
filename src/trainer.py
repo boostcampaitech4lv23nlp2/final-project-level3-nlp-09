@@ -78,6 +78,7 @@ class Trainer(object):
             pbar = tqdm(train_dataloader, total=len(train_dataloader), leave=True)
 
             for texts, images in pbar:
+                # TODO: 10에폭 더 구워보십쇼
                 self.model.train()
                 optimizer.zero_grad()
                 with autocast():
@@ -285,7 +286,7 @@ class HardNegativeTrainer(Trainer):
         )
         total_steps = len(train_dataloader) * self.args.num_train_epochs * 3
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
-        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-5, total_steps=total_steps)
+        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-7, total_steps=total_steps)
         loss_func = ClipLoss()
         triplet_loss = nn.TripletMarginLoss(margin=1.0, p=2)
 

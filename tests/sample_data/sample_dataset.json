@@ -1,0 +1,23 @@
+{
+    "info": {
+      "description": "aihub:1.0 - Nuvi modified 400 classes AIHUB.",
+      "version": "1.0",
+      "date": "2022-05-13",
+      "contributor": "Luca Medeiros",
+      "food_structure_version": 0.0
+    },
+    "images": [
+      {
+          "file_name": "1_가자미전_07_071_07011001_160298971793943_1.jpg",
+          "id": 329824,
+          "category_id": 1,
+          "date": "2022-11-29 14:09:08.029536"
+      },
+      {
+        "file_name": "3_가자미조림_09_091_09011001_160351722354651_0.jpg",
+        "id": 25555,
+        "category_id": 2,
+        "date": "2022-11-29 14:09:03.946320"
+      }
+    ]
+}
