@@ -35,6 +35,8 @@ class Trainer(object):
         with open(os.path.join(args.dataset_path, args.labels_info_file_name)) as f:
             labels_json = json.load(f)
 
+        self.food_labels = [item["label"] for item in labels_json["categories"]]
+
         self.text_to_id_dict = {item["label"]: item["id"] for item in labels_json["categories"]}
         self.id_to_text_dict = {item["id"]: item["label"] for item in labels_json["categories"]}
         num_labels = len(labels_json["categories"])
@@ -63,7 +65,7 @@ class Trainer(object):
         )
         total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
-        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-5, total_steps=total_steps)
+        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.args.learning_rate, total_steps=total_steps)
         loss_func = ClipLoss()
 
         scaler = torch.cuda.amp.GradScaler()
@@ -77,7 +79,6 @@ class Trainer(object):
             pbar = tqdm(train_dataloader, total=len(train_dataloader) * 3, leave=True)
 
             for texts, images in pbar:
-                # TODO: 10에폭 더 구워보십쇼
                 self.model.train()
                 optimizer.zero_grad()
                 with autocast():
@@ -149,13 +150,16 @@ class Trainer(object):
         pbar = tqdm(eval_dataloader, leave=True)
         valid_acc = 0
 
+        tokenized_food_labels = self.tokenizer(self.food_labels).to(self.device)
+
         with torch.no_grad():
             for texts, images in pbar:
                 images = images.to(self.device, dtype=cast_dtype)
-                texts = self.tokenizer(texts).to(self.device)
+                tokenized_texts = self.tokenizer(texts).to(self.device)
                 with autocast():
                     image_features = self.model.encode_image(images)
-                    text_features = self.model.encode_text(texts)
+                    text_features = self.model.encode_text(tokenized_texts)
+                    food_features = self.model.encode_text(tokenized_food_labels)
                     logit_scale = self.model.logit_scale.exp()
 
                     all_image_features.append(image_features)
@@ -163,16 +167,18 @@ class Trainer(object):
 
                     image_features = image_features / image_features.norm(dim=1, keepdim=True)
                     text_features = text_features / text_features.norm(dim=1, keepdim=True)
+                    food_features = food_features / food_features.norm(dim=1, keepdim=True)
 
                     logits_per_image = logit_scale * image_features @ text_features.t()
+                    logits_per_image_food = logit_scale * image_features @ food_features.t()
                     logits_per_text = logits_per_image.t()
                     batch_size = images.shape[0]
                     labels = torch.arange(batch_size, device=self.device).long()
                     total_loss = (
                         F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)
                     ) / 2
-                    _, preds = torch.max(logits_per_image, 1)
-                    valid_acc += torch.sum(preds.cpu() == labels.cpu()) / batch_size
+                    _, preds = torch.max(logits_per_image_food, 1)
+                    valid_acc += sum(np.asarray(self.food_labels)[preds.cpu()] == np.asarray(texts)) / batch_size
                 cumulative_loss += total_loss * batch_size
                 num_samples += batch_size
 
@@ -281,11 +287,15 @@ class HardNegativeTrainer(Trainer):
         cast_dtype = get_cast_dtype(self.args.precision)
         train_sampler = CustomSampler(do_hard_negative=self.args.do_hard_negative, dset=self.train_dataset)
         train_dataloader = DataLoader(
-            self.train_dataset, self.args.batch_size * 3, sampler=train_sampler, num_workers=self.args.num_workers
+            self.train_dataset,
+            self.args.batch_size * 3,
+            sampler=train_sampler,
+            num_workers=self.args.num_workers,
+            drop_last=True,
         )
         total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
-        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-7, total_steps=total_steps)
+        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.args.learning_rate, total_steps=total_steps)
         loss_func = ClipLoss()
 
         scaler = torch.cuda.amp.GradScaler()
@@ -307,26 +317,20 @@ class HardNegativeTrainer(Trainer):
 
                 with autocast():
                     for index in range(0, self.args.batch_size * 3, self.args.batch_size):
-                        # TODO: 실제로 잘 가져오는지 디버깅 필요
-                        # TODO: Curriculum Learning으로 구성하십시오.
-                        # TODO: 배치 자체를 HN으로 구성하십시오. 현재 방법은 이미지 밖에 반영 안할 것 같습니다.
-                        # TODO: Smoothing으로 틀린 수준을 구분하십시오. 부분 점수 부여 방안 고려
-                        # TODO: Masking 기법을 고려. Text Masking 개꿀잼일듯
-                        # TODO: 2-Stage는 너무 Fit한 솔루션일 수 있습니다. Text에 대분류를 붙이던지, HN을 하던지. 모델 2개로 하면 무거울걸
-                        # TODO: Graph Sampler
                         torch.cuda.empty_cache()
                         text = texts[index : index + self.args.batch_size]
                         image = images[index : index + self.args.batch_size]
                         image = image.to(self.device, dtype=cast_dtype)
                         text = self.tokenizer(list(text)).to(self.device)
-                        logits_per_image = self.model.encode_image(image)
-                        logits_per_text = self.model.encode_text(text)
+                        features_per_image = self.model.encode_image(image)
+                        features_per_text = self.model.encode_text(text)
 
-                        logits_per_image = logits_per_image / logits_per_image.norm(dim=1, keepdim=True)
-                        logits_per_text = logits_per_text / logits_per_text.norm(dim=1, keepdim=True)
+                        features_per_image = features_per_image / features_per_image.norm(dim=1, keepdim=True)
+                        features_per_text = features_per_text / features_per_text.norm(dim=1, keepdim=True)
 
-                        outputs_texts.append(logits_per_text)
-                        outputs_images.append(logits_per_image)
+                        outputs_texts.append(features_per_text)
+                        outputs_images.append(features_per_image)
+                    logit_scale = self.model.logit_scale.exp()
                     logits_per_texts = torch.cat(outputs_texts)
                     logits_per_images = torch.cat(outputs_images)
 
@@ -343,11 +347,11 @@ class HardNegativeTrainer(Trainer):
                     logits = logits / torch.sum(logits)
                     loss = torch.sum(-torch.log(logits[:, 0] / torch.sum(logits, dim=1))) / logits.size(0)
 
-                    total_loss = loss_func(logits_per_images[:, 0, :], logits_per_texts)
+                    multiplied_embeddings = logit_scale * (logits_per_images[:, 0, :] @ logits_per_texts.t())
+
+                    total_loss = loss_func(multiplied_embeddings, multiplied_embeddings.t())
 
                     total_loss = loss + total_loss
-                    # TODO: .item으로는 그래프가 끊어질텐디?
-                    # TODO: TripleMarginLoss를 고려해보기
                     total_data_num += len(images)
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
