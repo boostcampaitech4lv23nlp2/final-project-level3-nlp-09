@@ -2,14 +2,13 @@ import argparse
 import json
 
 import torch
+import torch.nn as nn
+from torchvision import models
 
-from src.category_inference import category_inference
+from src.category_trainer import Trainer
 from src.dataset import FoodImageDataset
-from src.embedspace import EmbedSpace
-from src.model import build_model
 from src.preprocess import image_transform
 from src.tokenizer import FoodTokenizer
-from src.trainer import HardNegativeTrainer, Trainer
 from src.utils import set_seed
 
 
@@ -17,7 +16,6 @@ def main(args):
 
     with open("src/model_configs/baseline.json") as f:
         configs = json.load(f)
-    text_cfg = configs["text_cfg"]
     vision_cfg = configs["vision_cfg"]
 
     set_seed(args.seed)
@@ -30,7 +28,10 @@ def main(args):
 
     preprocess = image_transform(vision_cfg["image_size"], is_train=True)
 
-    model = build_model(vision_cfg, text_cfg)
+    model = models.resnet50(pretrained=True)
+    num_features = model.fc.in_features
+    num_classes = 16
+    model.fc = nn.Linear(num_features, num_classes)
 
     if args.resume is not None:
         checkpoint = torch.load(args.resume, map_location="cpu")
@@ -44,12 +45,7 @@ def main(args):
 
     tokens_path = "./src/model_configs/tokens_by_length.json"
     tokenizer = FoodTokenizer(tokens_path, configs=configs)
-    trainer = (
-        HardNegativeTrainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
-        if args.do_hard_negative
-        else Trainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
-    )
-    # trainer = Trainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
+    trainer = Trainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
 
     if args.do_train:
         trainer.train()
@@ -57,24 +53,20 @@ def main(args):
         trainer.evaluate(mode="valid")
     if args.do_inference:
         trainer.inference(mode="valid")
-    if args.do_category_inference:
-        category_inference(args)
-    if args.get_embed_space and args.resume:
-        EmbedSpace(args, model, test_dataset)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=64, type=int)
+    parser.add_argument("--batch_size", default=512, type=int)
     parser.add_argument("--seed", default=200, type=int)
     parser.add_argument("--learning_rate", default=5e-5, type=float)
     parser.add_argument("--eval_batch_size", default=64, type=int)
     parser.add_argument("--num_train_epochs", default=10, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
-    parser.add_argument("--do_train", default=False, type=bool)
-    parser.add_argument("--do_wandb", default=False, type=bool)
-    parser.add_argument("--do_eval", default=False, type=bool)
+    parser.add_argument("--do_train", default=True, type=bool)
+    parser.add_argument("--do_wandb", default=True, type=bool)
+    parser.add_argument("--do_eval", default=True, type=bool)
     parser.add_argument("--do_inference", default=False, type=bool)
     parser.add_argument("--do_hard_negative", default=False, type=bool)
     parser.add_argument("--do_category_inference", default=True, type=bool)
@@ -86,11 +78,11 @@ if __name__ == "__main__":
     parser.add_argument("--save_frequency", default=5, type=int)
     parser.add_argument("--checkpoint_path", default="src/output", type=str)
     parser.add_argument(
-        "--resume", default="src/output/epoch_9.pt", type=str, help="path to latest checkpoint (default: None)"
+        "--resume", default="output/epoch_9.pt", type=str, help="path to latest checkpoint (default: None)"
     )
     parser.add_argument(
         "--category_resume",
-        default="src/output/category_epoch_9.pt",
+        default="output/category_epoch_9.pt",
         type=str,
         help="path to latest checkpoint (default: None)",
     )
@@ -103,7 +95,6 @@ if __name__ == "__main__":
         default="amp",
         help="Floating point precision.",
     )
-    parser.add_argument("--get_embed_space", default=False, type=bool)
 
     args = parser.parse_args()
 
