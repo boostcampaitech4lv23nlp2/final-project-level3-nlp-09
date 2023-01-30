@@ -30,6 +30,8 @@ def main(args):
     preprocess = image_transform(vision_cfg["image_size"], is_train=True)
 
     model = build_model(vision_cfg, text_cfg)
+    # for _, param in model.transformer.named_parameters():
+    #    param.requires_grad = False
 
     if args.resume is not None:
         checkpoint = torch.load(args.resume, map_location="cpu")
@@ -38,7 +40,7 @@ def main(args):
         #    scaler.load_state_dict(checkpoint['scaler'])
         print(f"=> from resuming checkpoint '{args.resume}' ")
     train_dataset = FoodImageDataset(args, preprocess, mode="train", ratio=1)
-    valid_dataset = FoodImageDataset(args, preprocess, mode="test", ratio=0.01)
+    valid_dataset = FoodImageDataset(args, preprocess, mode="test", ratio=0.1)
     test_dataset = FoodImageDataset(args, preprocess, mode="test", ratio=1)
 
     tokens_path = "./src/model_configs/tokens_by_length.json"
@@ -65,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--seed", default=200, type=int)
     parser.add_argument("--learning_rate", default=5e-5, type=float)
-    parser.add_argument("--eval_batch_size", default=64, type=int)
+    parser.add_argument("--eval_batch_size", default=386, type=int)
     parser.add_argument("--num_train_epochs", default=10, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
@@ -73,7 +75,7 @@ if __name__ == "__main__":
     parser.add_argument("--do_wandb", default=False, type=bool)
     parser.add_argument("--do_eval", default=True, type=bool)
     parser.add_argument("--do_inference", default=True, type=bool)
-    parser.add_argument("--do_hard_negative", default=True, type=bool)
+    parser.add_argument("--do_hard_negative", default=False, type=bool)
     parser.add_argument("--dataset_path", default="data", type=str)
     parser.add_argument("--train_info_file_name", default="aihub_1.0_43_0.3_train_crop.json", type=str)
     parser.add_argument("--test_info_file_name", default="aihub_1.0_43_0.3_test_crop.json", type=str)
@@ -81,7 +83,12 @@ if __name__ == "__main__":
     parser.add_argument("--save_logs", default=True, type=bool)
     parser.add_argument("--save_frequency", default=5, type=int)
     parser.add_argument("--checkpoint_path", default="src/output", type=str)
-    parser.add_argument("--resume", default=None, type=str, help="path to latest checkpoint (default: None)")
+    parser.add_argument(
+        "--resume",
+        default="src/output/01161654_epochs-10_batch-128/epoch_9.pt",
+        type=str,
+        help="path to latest checkpoint (default: None)",
+    )
     parser.add_argument(
         "--val_frequency", default=1, type=int, help="How often to run evaluation with validation data."
     )
