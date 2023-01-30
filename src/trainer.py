@@ -339,7 +339,9 @@ class HardNegativeTrainer(Trainer):
 
                     logits_per_texts = logits_per_texts[:, 0, :]
 
-                    loss = triplet_loss(logits_per_images[:, 0, :], logits_per_images[:, 1, :], logits_per_images[:, 2, :])
+                    loss = triplet_loss(
+                        logits_per_images[:, 0, :], logits_per_images[:, 1, :], logits_per_images[:, 2, :]
+                    )
                     multiplied_embeddings = logit_scale * (logits_per_images[:, 0, :] @ logits_per_texts.t())
                     total_loss = loss_func(multiplied_embeddings, multiplied_embeddings.t())
 
