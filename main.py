@@ -88,9 +88,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_logs", default=True, type=bool)
     parser.add_argument("--save_frequency", default=5, type=int)
     parser.add_argument("--checkpoint_path", default="src/output", type=str)
-    parser.add_argument(
-        "--resume", default=None, type=str, help="path to latest checkpoint (default: None)"
-    )
+    parser.add_argument("--resume", default=None, type=str, help="path to latest checkpoint (default: None)")
     parser.add_argument(
         "--category_resume",
         default=None,
