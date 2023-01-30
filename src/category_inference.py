@@ -11,7 +11,7 @@ from tqdm import tqdm
 from src.dataset import FoodImageDataset
 from src.model import build_model
 from src.preprocess import image_transform
-from src.sampler import CategoryContrastiveSampler
+from src.sampler import CustomSampler
 from src.tokenizer import FoodTokenizer
 from src.utils import set_seed
 
@@ -65,7 +65,7 @@ def category_inference(args):
     category_model = category_model.to(device)
     clip_model.eval()
     category_model.eval()
-    eval_sampler = CategoryContrastiveSampler(dataset)
+    eval_sampler = CustomSampler(dataset)
     eval_dataloader = DataLoader(dataset, 1, sampler=eval_sampler)
 
     num_samples = 0

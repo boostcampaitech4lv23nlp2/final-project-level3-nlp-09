@@ -72,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=200, type=int)
     parser.add_argument("--learning_rate", default=5e-5, type=float)
     parser.add_argument("--eval_batch_size", default=386, type=int)
-    parser.add_argument("--num_train_epochs", default=10, type=int)
+    parser.add_argument("--num_train_epochs", default=40, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
     parser.add_argument("--do_train", default=True, type=bool)
@@ -88,7 +88,12 @@ if __name__ == "__main__":
     parser.add_argument("--save_logs", default=True, type=bool)
     parser.add_argument("--save_frequency", default=5, type=int)
     parser.add_argument("--checkpoint_path", default="src/output", type=str)
-    parser.add_argument("--resume", default=None, type=str, help="path to latest checkpoint (default: None)")
+    parser.add_argument(
+        "--resume",
+        default="/opt/ml/final-project-level3-nlp-09/src/output/01161654_epochs-10_batch-128/epoch_9.pt",
+        type=str,
+        help="path to latest checkpoint (default: None)",
+    )
     parser.add_argument(
         "--category_resume",
         default=None,
