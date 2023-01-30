@@ -295,7 +295,7 @@ class HardNegativeTrainer(Trainer):
         )
         total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
-        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-5, total_steps=total_steps)
+        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-7, total_steps=total_steps)
         loss_func = ClipLoss()
 
         scaler = torch.cuda.amp.GradScaler()
