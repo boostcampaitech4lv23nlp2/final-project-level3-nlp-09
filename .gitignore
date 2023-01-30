@@ -136,3 +136,5 @@ dmypy.json
 test.ipynb
 /wandb
 /experiments
+aihub_train.zip
+aihub_test.zip

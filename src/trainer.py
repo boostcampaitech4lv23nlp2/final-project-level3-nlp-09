@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 import torch.optim as optim
 import wandb
 from torch.nn import functional as F
@@ -74,7 +75,7 @@ class Trainer(object):
             total_data_num = 0
             step = len(train_dataloader) * epoch
 
-            pbar = tqdm(train_dataloader, total=len(train_dataloader) * 3, leave=True)
+            pbar = tqdm(train_dataloader, total=len(train_dataloader), leave=True)
 
             for texts, images in pbar:
                 self.model.train()
@@ -282,14 +283,13 @@ class HardNegativeTrainer(Trainer):
         train_dataloader = DataLoader(
             self.train_dataset, self.args.batch_size * 3, sampler=train_sampler, num_workers=self.args.num_workers
         )
-        total_steps = len(train_dataloader) * self.args.num_train_epochs
+        total_steps = len(train_dataloader) * self.args.num_train_epochs * 3
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
         scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-5, total_steps=total_steps)
         loss_func = ClipLoss()
+        triplet_loss = nn.TripletMarginLoss(margin=1.0, p=2)
 
         scaler = torch.cuda.amp.GradScaler()
-
-        t = 0.07
         for epoch in range(self.args.num_train_epochs):
             train_loss = 0.0
             step = 0
@@ -327,17 +327,12 @@ class HardNegativeTrainer(Trainer):
 
                     logits_per_texts = logits_per_texts[:, 0, :]
 
-                    pos_logits = torch.sum(logits_per_images[:, 0, :] * logits_per_images[:, 1, :], dim=1)
-                    neg_logits = torch.sum(logits_per_images[:, 0, :] * logits_per_images[:, 2, :], dim=1)
-                    logits = torch.cat([pos_logits.view(-1, 1), neg_logits.view(-1, 1)], dim=1)
-                    logits = logits / t
-                    logits = torch.exp(logits)
-                    logits = logits / torch.sum(logits)
-                    loss = torch.sum(-torch.log(logits[:, 0] / torch.sum(logits, dim=1))) / logits.size(0)
-
+                    loss = triplet_loss(
+                        logits_per_images[:, 0, :], logits_per_images[:, 1, :], logits_per_images[:, 2, :]
+                    )
                     total_loss = loss_func(logits_per_images[:, 0, :], logits_per_texts)
 
-                    total_loss = loss.item() + total_loss
+                    total_loss = loss + total_loss
                     total_data_num += len(images)
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
