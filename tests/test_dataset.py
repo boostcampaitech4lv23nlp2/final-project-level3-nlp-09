@@ -15,7 +15,7 @@ class TestDataset(unittest.TestCase):
         parser.add_argument("--train_info_file_name", default="sample_dataset.json", type=str)
         parser.add_argument("--test_info_file_name", default="sample_dataset.json", type=str)
         parser.add_argument("--labels_info_file_name", default="sample_label.json", type=str)
-        self.args = parser.parse_args()
+        self.args = parser.parse_args(args=[])
 
         with open("src/model_configs/baseline.json") as f:
             configs = json.load(f)
