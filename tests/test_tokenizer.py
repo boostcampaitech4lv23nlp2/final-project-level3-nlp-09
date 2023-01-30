@@ -2,7 +2,7 @@ import json
 import os
 import unittest
 
-from src.tokenizer import FoodTokenizer, basic_clean, whitespace_clean
+from src.tokenizer import FoodTokenizer, HFTokenizer, basic_clean, get_tokenizer, whitespace_clean
 
 
 class TestTokenizer(unittest.TestCase):
@@ -15,6 +15,14 @@ class TestTokenizer(unittest.TestCase):
         question = "&amp; The Mona Lisa doesnÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢t have eyebrows."
         ans = "& The Mona Lisa doesn't have eyebrows."
         self.assertEqual(basic_clean(question), ans)
+
+    def test_HFTokenizer(self):
+        tokenizer = HFTokenizer("klue/roberta-small")
+        ans = [[0, 12893, 15622, 12144, 2, 1, 1, 1]]
+        self.assertEqual(tokenizer("참치김치찌개", context_length=8).tolist(), ans)
+
+    def test_get_tokenizer(self):
+        get_tokenizer("klue/roberta-small")
 
     def test_FoodTokenizer(self):
 
