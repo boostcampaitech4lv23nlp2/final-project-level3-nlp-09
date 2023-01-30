@@ -40,7 +40,8 @@ class SamplerTester(unittest.TestCase):
         )
         parser.add_argument("--get_embed_space", default=False, type=bool)
 
-        args = parser.parse_args()
+        args = parser.parse_args(args=[])
+
         with open("src/model_configs/baseline.json") as f:
             configs = json.load(f)
         vision_cfg = configs["vision_cfg"]
