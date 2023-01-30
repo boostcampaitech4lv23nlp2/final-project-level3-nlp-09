@@ -77,6 +77,7 @@ class Trainer(object):
             pbar = tqdm(train_dataloader, total=len(train_dataloader) * 3, leave=True)
 
             for texts, images in pbar:
+                # TODO: 10에폭 더 구워보십쇼
                 self.model.train()
                 optimizer.zero_grad()
                 with autocast():
@@ -284,7 +285,7 @@ class HardNegativeTrainer(Trainer):
         )
         total_steps = len(train_dataloader) * self.args.num_train_epochs
         optimizer = optim.AdamW(self.model.parameters(), lr=0)
-        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-5, total_steps=total_steps)
+        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5e-7, total_steps=total_steps)
         loss_func = ClipLoss()
 
         scaler = torch.cuda.amp.GradScaler()
@@ -306,6 +307,13 @@ class HardNegativeTrainer(Trainer):
 
                 with autocast():
                     for index in range(0, self.args.batch_size * 3, self.args.batch_size):
+                        # TODO: 실제로 잘 가져오는지 디버깅 필요
+                        # TODO: Curriculum Learning으로 구성하십시오.
+                        # TODO: 배치 자체를 HN으로 구성하십시오. 현재 방법은 이미지 밖에 반영 안할 것 같습니다.
+                        # TODO: Smoothing으로 틀린 수준을 구분하십시오. 부분 점수 부여 방안 고려
+                        # TODO: Masking 기법을 고려. Text Masking 개꿀잼일듯
+                        # TODO: 2-Stage는 너무 Fit한 솔루션일 수 있습니다. Text에 대분류를 붙이던지, HN을 하던지. 모델 2개로 하면 무거울걸
+                        # TODO: Graph Sampler
                         torch.cuda.empty_cache()
                         text = texts[index : index + self.args.batch_size]
                         image = images[index : index + self.args.batch_size]
@@ -337,7 +345,9 @@ class HardNegativeTrainer(Trainer):
 
                     total_loss = loss_func(logits_per_images[:, 0, :], logits_per_texts)
 
-                    total_loss = loss.item() + total_loss
+                    total_loss = loss + total_loss
+                    # TODO: .item으로는 그래프가 끊어질텐디?
+                    # TODO: TripleMarginLoss를 고려해보기
                     total_data_num += len(images)
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
