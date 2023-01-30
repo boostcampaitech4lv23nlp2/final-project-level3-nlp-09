@@ -17,7 +17,7 @@ def app():
     uploaded_file = st.file_uploader("Choose a file")
     if uploaded_file is not None:
         st.image(uploaded_file)
-        labels = ["짬뽕", "콩나물", "떡갈비", "잡채", "부추전", "무지개떡"]
+        # labels = ["짬뽕", "콩나물", "떡갈비", "잡채", "부추전", "무지개떡"]
         image = preprocess(Image.open(uploaded_file)).unsqueeze(0)
         text = tokenizer(labels)
 
