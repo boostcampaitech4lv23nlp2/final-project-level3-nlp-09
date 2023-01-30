@@ -1,9 +1,10 @@
 import argparse
-import json
+
+# import json
 import unittest
 
-from src.dataset import FoodImageDataset
-from src.preprocess import image_transform
+# from src.dataset import FoodImageDataset
+# from src.preprocess import image_transform
 
 
 class SamplerTester(unittest.TestCase):
@@ -40,18 +41,21 @@ class SamplerTester(unittest.TestCase):
         )
         parser.add_argument("--get_embed_space", default=False, type=bool)
 
-        args = parser.parse_args(args=[])
+        # args = parser.parse_args(args=[])
 
-        with open("src/model_configs/baseline.json") as f:
-            configs = json.load(f)
-        vision_cfg = configs["vision_cfg"]
+        # with open("src/model_configs/baseline.json") as f:
+        #     configs = json.load(f)
+        # vision_cfg = configs["vision_cfg"]
 
-        preprocess = image_transform(vision_cfg["image_size"], is_train=True)
+        # preprocess = image_transform(vision_cfg["image_size"], is_train=True)
 
-        self.train_dataset = FoodImageDataset(args, preprocess, mode="train", ratio=1)
+        # self.train_dataset = FoodImageDataset(args, preprocess, mode="train", ratio=1)
 
+        # TODO: sampler에 필요한 dataset이 action에 올라오지 않아서 문제발생
+        # TODO: sample dataset 구축하기
         return super().setUp()
 
+    # TODO: sampler class의 멤버 함수에 대한 유닛 테스트
     def test_len_dset(self):
         pass
 
