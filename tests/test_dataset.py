@@ -21,6 +21,9 @@ class TestDataset(unittest.TestCase):
             configs = json.load(f)
         vision_cfg = configs["vision_cfg"]
 
+        self.train_file_path = "data/aihub_1.0_43_0.3_train_crop.json"
+        self.test_file_path = "data/aihub_1.0_43_0.3_test_crop.json"
+
         self.preprocess = image_transform(vision_cfg["image_size"], is_train=True)
         self.sample_data = {
             "file_name": "1_가자미전_07_071_07011001_160298971793943_1.jpg",
@@ -33,6 +36,13 @@ class TestDataset(unittest.TestCase):
         return super().setUp()
 
     def test_load_train_dataset(self):
+        """
+        if os.path.isfile(self.train_file_path):
+            print("REAL TRAIN DATA DETECTED! Testing code with real data...")
+        else:
+            print("REAL TRAIN DATA !NOT! DETECTED. Testing code with dummy data...")
+            print("If you didn't...")
+        """
         dataset = FoodImageDataset(self.args, self.preprocess, mode="train", ratio=1)
         self.assertEqual(dataset.data[0], self.sample_data)
         self.assertEqual(dataset.__len__(), 2)
