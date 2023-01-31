@@ -13,8 +13,8 @@ from torchvision.transforms import (
     ToTensor,
 )
 
-OPENAI_DATASET_MEAN = (0.48145466, 0.4578275, 0.40821073)
-OPENAI_DATASET_STD = (0.26862954, 0.26130258, 0.27577711)
+OPENAI_DATASET_MEAN = (0.0026, 0.0022, 0.0018)
+OPENAI_DATASET_STD = (0.0017, 0.0016, 0.0016)
 
 
 class ResizeMaxSize(nn.Module):
@@ -88,7 +88,31 @@ def image_transform(
             [
                 _convert_to_rgb,
                 ToTensor(),
-                normalize,
+                # normalize,
             ]
         )
         return Compose(transforms)
+
+
+def food_transform():
+    mean = [0.4482, 0.3830, 0.3044]
+    std = [0.2886, 0.2768, 0.2754]
+
+    train_tfms = Compose(
+        [
+            Resize(size=(224, 224)),
+            RandomResizedCrop(size=(224, 224), scale=(0.6, 1.0)),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ]
+    )
+
+    valid_tfms = Compose(
+        [
+            Resize(size=(224, 224)),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ]
+    )
+
+    return train_tfms, valid_tfms

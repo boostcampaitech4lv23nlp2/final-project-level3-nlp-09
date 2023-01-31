@@ -7,7 +7,7 @@ from src.category_inference import category_inference
 from src.dataset import FoodImageDataset
 from src.embedspace import EmbedSpace
 from src.model import build_model
-from src.preprocess import image_transform
+from src.preprocess import food_transform
 from src.tokenizer import FoodTokenizer
 from src.trainer import HardNegativeTrainer, Trainer
 from src.utils import set_seed
@@ -28,7 +28,7 @@ def main(args):
         # This was a default in pytorch until 1.12
         torch.backends.cuda.matmul.allow_tf32 = True
 
-    preprocess = image_transform(vision_cfg["image_size"], is_train=True)
+    train_preprocess, valid_preprocess = food_transform()
 
     model = build_model(vision_cfg, text_cfg)
     # for _, param in model.transformer.named_parameters():
@@ -41,9 +41,9 @@ def main(args):
         #    scaler.load_state_dict(checkpoint['scaler'])
         print(f"=> from resuming checkpoint '{args.resume}' ")
 
-    train_dataset = FoodImageDataset(args, preprocess, mode="train", ratio=1)
-    valid_dataset = FoodImageDataset(args, preprocess, mode="test", ratio=0.1)
-    test_dataset = FoodImageDataset(args, preprocess, mode="test", ratio=1)
+    train_dataset = FoodImageDataset(args, train_preprocess, mode="train", ratio=1)
+    valid_dataset = FoodImageDataset(args, valid_preprocess, mode="test", ratio=0.1)
+    test_dataset = FoodImageDataset(args, valid_preprocess, mode="test", ratio=1)
 
     tokens_path = "./src/model_configs/tokens_by_length.json"
     tokenizer = FoodTokenizer(tokens_path, configs=configs)
@@ -71,8 +71,8 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--seed", default=200, type=int)
     parser.add_argument("--learning_rate", default=5e-5, type=float)
-    parser.add_argument("--eval_batch_size", default=386, type=int)
-    parser.add_argument("--num_train_epochs", default=40, type=int)
+    parser.add_argument("--eval_batch_size", default=64, type=int)
+    parser.add_argument("--num_train_epochs", default=50, type=int)
     parser.add_argument("--warmup", default=10000, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
     parser.add_argument("--do_train", default=True, type=bool)
@@ -86,11 +86,11 @@ if __name__ == "__main__":
     parser.add_argument("--test_info_file_name", default="test/aihub:1.0_43_0.3_test_crop.json", type=str)
     parser.add_argument("--labels_info_file_name", default="labels.json", type=str)
     parser.add_argument("--save_logs", default=True, type=bool)
-    parser.add_argument("--save_frequency", default=5, type=int)
+    parser.add_argument("--save_frequency", default=10, type=int)
     parser.add_argument("--checkpoint_path", default="src/output", type=str)
     parser.add_argument(
         "--resume",
-        default="/opt/ml/final-project-level3-nlp-09/src/output/01161654_epochs-10_batch-128/epoch_9.pt",
+        default=None,
         type=str,
         help="path to latest checkpoint (default: None)",
     )
