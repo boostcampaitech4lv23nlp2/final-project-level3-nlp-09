@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import torch
 import wandb
+import streamlit as st
 
 from src.dataset import FoodImageDataset
 from src.model import build_model
@@ -93,6 +94,7 @@ class ModelWeakness:
     def get_preprocess(self, vision_cfg):
         return image_transform(vision_cfg["image_size"], is_train=True)
 
+
     def get_model(self, args, vision_cfg, text_cfg, model_artifact, artifact_path):
         # TODO: wandb artifact로 바꾸기
         path = os.path.join("app/artifacts", model_artifact[: model_artifact.find(".pt") + 3])
@@ -133,7 +135,7 @@ def get_model_artifact_options(model_option, runs_df):
     artifact_option = df.loc[df["run_name"] == model_option]["artifacts"].tolist()[0]
     return artifact_option
 
-
+@st.cache
 def get_wandb_runs_df(entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
     # wandb project 관련 데이터 가져오기
     api = wandb.Api()
