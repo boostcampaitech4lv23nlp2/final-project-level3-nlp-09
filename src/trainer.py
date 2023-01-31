@@ -215,7 +215,9 @@ class Trainer(object):
         pbar = tqdm(eval_dataloader, leave=True)
         valid_acc = 0
         pred_texts = []
+        pred_ids = []
         correct_texts = []
+        correct_ids = []
 
         with torch.no_grad():
             for texts, images in pbar:
@@ -234,12 +236,23 @@ class Trainer(object):
                 num_samples += batch_size
                 pred_text_id = indices[0].item()
                 pred_texts.append(self.id_to_text_dict[pred_text_id])
+                pred_ids.append(pred_text_id)
                 correct_texts.append(self.id_to_text_dict[org_texts_id])
+                correct_ids.append(org_texts_id)
             valid_acc = correct_num / len(eval_dataloader)
-            df = pd.DataFrame({"pred_texts": pred_texts, "correct_texts": correct_texts})
+            df = pd.DataFrame(
+                {
+                    "pred_texts": pred_texts,
+                    "pred_ids": pred_ids,
+                    "correct_texts": correct_texts,
+                    "correct_ids": correct_ids,
+                }
+            )
             df.to_csv(os.path.join(self.args.dataset_path, "result.csv"))
             print(f"validation acc: {valid_acc}")
             metrics.update()
+
+            return df
 
     def get_metrics(self, image_features, text_features, logit_scale):
         metrics = {}
