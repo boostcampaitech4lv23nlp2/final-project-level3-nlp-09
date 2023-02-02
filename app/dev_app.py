@@ -34,10 +34,8 @@ if download_button:
     get_artifact(artifact_option)
     modelWeakness = ModelWeakness(artifact_option)
     weakness_df, acc = modelWeakness.get_model_weakness()
-
-    category_df = weakness_df["correct_category_id"]
     category_fig = px.pie(
-        category_df, values="correct_category_id", names="correct_category_id", title="Pie Chart of categories"
+        weakness_df, values="correct_category_id", names="correct_category", title="Pie Chart of categories"
     )
     st.write(f"accuracy: {acc * 100:.3f}%")
     st.plotly_chart(category_fig)
