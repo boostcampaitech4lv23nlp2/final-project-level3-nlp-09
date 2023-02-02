@@ -114,7 +114,7 @@ if os.path.exists(artifact_path):
     try:
         row_select = dict(grid_response)["selected_rows"][0]
         st.write(row_select)
-    except:
+    except KeyError:
         st.write("no row selected")
 
     food_to_count_dict = dict(total_df["pred_texts"].value_counts())
