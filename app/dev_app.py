@@ -66,14 +66,14 @@ if os.path.exists(artifact_path):
         pkl = pickle.load(f)
         total_df, weakness_df, acc = pkl[0], pkl[1], pkl[2]
 
-    weakness_df["same_group"] = weakness_df["pred_category_id"] == weakness_df["correct_category_id"]
+    weakness_df["same_category"] = weakness_df["pred_category_id"] == weakness_df["correct_category_id"]
     st.write(
         f"""
              accuracy: {acc * 100:.2f}% \n
              데이터셋: {len(total_df)} \n
              오답: {len(weakness_df)}/{len(total_df)} ({len(weakness_df)/len(total_df) * 100:.2f}%) \n
-             대분류 내 오답: {weakness_df["same_group"].sum()}/{len(weakness_df)} ({weakness_df["same_group"].sum()/len(weakness_df)*100:.2f}%) \n
-             대분류 외 오답: {len(weakness_df) - weakness_df["same_group"].sum()}/{len(weakness_df)} ({100 - weakness_df["same_group"].sum()/len(weakness_df)*100:.2f}%)
+             대분류 내 오답: {weakness_df["same_category"].sum()}/{len(weakness_df)} ({weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%) \n
+             대분류 외 오답: {len(weakness_df) - weakness_df["same_category"].sum()}/{len(weakness_df)} ({100 - weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%)
              """
     )
     category_fig1 = px.pie(
@@ -91,7 +91,7 @@ if os.path.exists(artifact_path):
     )
     st.plotly_chart(category_fig2)
 
-    df1 = weakness_df[["pred_texts", "correct_texts", "pred_category", "correct_category", "same_group"]]
+    df1 = weakness_df[["pred_texts", "correct_texts", "pred_category", "correct_category", "same_category"]]
     gb = GridOptionsBuilder.from_dataframe(df1)
     # gb.configure_pagination(paginationPageSize=20)
     gb.configure_selection("single", use_checkbox=False)
