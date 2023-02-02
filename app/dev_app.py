@@ -66,14 +66,21 @@ if os.path.exists(artifact_path):
         pkl = pickle.load(f)
         total_df, weakness_df, acc = pkl[0], pkl[1], pkl[2]
 
+    food_to_count_dict = dict(total_df["pred_texts"].value_counts())
+    total_df["correct"] = total_df.pred_ids == total_df.correct_ids
+    total = total_df.groupby("pred_texts")["correct"].sum().reset_index()
+    total["total_guess"] = total["pred_texts"].apply(lambda x: food_to_count_dict[x])
+    total["corr_perc"] = total.apply(lambda x: x["correct"] / food_to_count_dict[x["pred_texts"]], axis=1)
+
     weakness_df["same_category"] = weakness_df["pred_category_id"] == weakness_df["correct_category_id"]
     st.write(
         f"""
              accuracy: {acc * 100:.2f}% \n
+             클래스 평균 acc.: {total["corr_perc"].sum()/len(total) * 100:.2f}% \n
              데이터셋: {len(total_df)} \n
              오답: {len(weakness_df)}/{len(total_df)} ({len(weakness_df)/len(total_df) * 100:.2f}%) \n
              대분류 내 오답: {weakness_df["same_category"].sum()}/{len(weakness_df)} ({weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%) \n
-             대분류 외 오답: {len(weakness_df) - weakness_df["same_category"].sum()}/{len(weakness_df)} ({100 - weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%)
+             대분류 외 오답: {len(weakness_df) - weakness_df["same_category"].sum()}/{len(weakness_df)} ({100 - weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%) \n
              """
     )
     category_fig1 = px.pie(
@@ -116,12 +123,6 @@ if os.path.exists(artifact_path):
         st.write(row_select)
     except IndexError:
         st.write("no row selected")
-
-    food_to_count_dict = dict(total_df["pred_texts"].value_counts())
-    total_df["correct"] = total_df.pred_ids == total_df.correct_ids
-    total = total_df.groupby("pred_texts")["correct"].sum().reset_index()
-    total["total_guess"] = total["pred_texts"].apply(lambda x: food_to_count_dict[x])
-    total["corr_perc"] = total.apply(lambda x: x["correct"] / food_to_count_dict[x["pred_texts"]], axis=1)
 
     df2 = total
     gb = GridOptionsBuilder.from_dataframe(df2)
