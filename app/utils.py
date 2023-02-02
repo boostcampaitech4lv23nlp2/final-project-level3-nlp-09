@@ -15,7 +15,6 @@ from src.tokenizer import FoodTokenizer
 from src.trainer import HardNegativeTrainer, Trainer
 from src.utils import set_seed
 
-
 class ModelWeakness:
     def __init__(self, artifact):
         self.artifact = artifact
@@ -36,7 +35,24 @@ class ModelWeakness:
         self.tokens_path = "./src/model_configs/tokens_by_length.json"
         self.tokenizer = self.get_tokenizer(self.tokens_path, self.configs)
         self.trainer = self.get_trainer(self.args, self.model, self.tokenizer, test_dataset=self.test_dataset)
-
+        self.category_id_to_kor = {
+            1 : "밥류",
+            2 : "면, 만두류",
+            3 : "죽, 스프류",
+            4 : "국, 탕, 찌개류",
+            5 : "찜류",
+            6 : "구이류",
+            7 : "전, 부침류",
+            8 : "볶음류",
+            9 : "조림류",
+            10: "튀김류",
+            11 : "나물, 무침류",
+            12 : "김치류",
+            13 : "장아찌, 젓갈류",
+            14 : "회류",
+            15 : "떡류",
+            16 : "한과류"
+            }
         self.weakness, self.acc = self.trainer.inference(mode="test")
 
     def get_model_config(self):
@@ -116,13 +132,17 @@ class ModelWeakness:
             else Trainer(args, model, tokenizer, train_dataset, valid_dataset, test_dataset)
         )
         return trainer
-
+    
     def get_model_weakness(self):
         self.weakness = self.weakness.loc[self.weakness.pred_texts != self.weakness.correct_texts]
         pred_category_ids = [self.food_to_category[food] for food in self.weakness["pred_texts"]]
         correct_category_ids = [self.food_to_category[food] for food in self.weakness["correct_texts"]]
         self.weakness["pred_category_id"] = pred_category_ids
         self.weakness["correct_category_id"] = correct_category_ids
+        pred_category = [self.category_id_to_kor[int(x)] for x in pred_category_ids]
+        correct_category = [self.category_id_to_kor[int(x)] for x in correct_category_ids]
+        self.weakness["pred_category"] = pred_category
+        self.weakness["correct_category"] = correct_category
 
         return self.weakness, self.acc
 
@@ -181,13 +201,11 @@ def get_wandb_runs_df(entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
 
     return runs_df
 
-
 def get_artifact(artifact_name, entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
     api = wandb.Api()
     artifact = api.artifact(entity + "/" + project + "/" + artifact_name)
     artifact.download(root="app/artifacts")
     return artifact_name
-
 
 def get_commit_id(runs_df, model_option):
     commit_id = runs_df.loc[runs_df["run_name"] == model_option]["commit_id"].iloc[0]
