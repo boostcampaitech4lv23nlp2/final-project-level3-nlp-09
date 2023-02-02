@@ -134,6 +134,7 @@ class ModelWeakness:
         return trainer
     
     def get_model_weakness(self):
+        dataset_size = len(self.weakness)
         self.weakness = self.weakness.loc[self.weakness.pred_texts != self.weakness.correct_texts]
         pred_category_ids = [self.food_to_category[food] for food in self.weakness["pred_texts"]]
         correct_category_ids = [self.food_to_category[food] for food in self.weakness["correct_texts"]]
@@ -144,7 +145,7 @@ class ModelWeakness:
         self.weakness["pred_category"] = pred_category
         self.weakness["correct_category"] = correct_category
 
-        return self.weakness, self.acc
+        return [self.weakness, self.acc, dataset_size]
 
     def get_food_to_category(self):
         with open(os.path.join("./data", "category_dict.json"), encoding="euc-kr") as f:
