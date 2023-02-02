@@ -204,7 +204,7 @@ def send_weakness(url, method, artifact, weakness_df):
         if method == "GET":
             response = requests.get(url)
         elif method == "POST":
-            response = requests.post(url, data=data, verify=False)
+            response = requests.post(url, data=json.dumps(data))
         print("response status %r" % response.status_code)
         print("response text %r" % response.text)
         print("response content%r" % response.content)
