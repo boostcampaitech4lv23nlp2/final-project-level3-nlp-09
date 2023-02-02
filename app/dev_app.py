@@ -41,7 +41,7 @@ if download_button:
     )
     st.write(f"accuracy: {acc * 100:.3f}%")
     st.plotly_chart(category_fig)
-    st.dataframe(weakness_df)
+    st.dataframe(weakness_df[["pred_texts", "correct_texts","pred_category", "correct_category"]])
 
     res = send_weakness(url, "POST", artifact_option, weakness_df)
     st.write("response: ", res)
