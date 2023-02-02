@@ -39,7 +39,7 @@ if download_button:
     category_fig = px.pie(
         category_df, values="correct_category_id", names="correct_category_id", title="Pie Chart of categories"
     )
-    st.write("accuracy: ", acc)
+    st.write(f"accuracy: {acc * 100:.3f}%")
     st.plotly_chart(category_fig)
     st.dataframe(weakness_df)
 
