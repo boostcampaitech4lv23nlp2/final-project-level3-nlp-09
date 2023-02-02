@@ -17,7 +17,24 @@ from utils import (
     send_weakness,
 )
 
-runs_df = get_wandb_runs_df()
+st.title("📝 Model Analysis Tool")
+
+st.markdown("""
+            This is a dashboard where you can analyize inference/zero-shot performance of any model that is saved in WandB.
+            What you can see:
+            - the pie chart shows the distribution of 대분류 of the test dataset
+            - the table shows all the wrong predictions
+            """)
+st.markdown("You can ")
+
+if os.path.exists("./app/runs_df.pkl"):
+    runs_df = pd.read_pickle("./app/runs_df.pkl")
+else:
+    runs_df = get_wandb_runs_df()
+
+if st.button("Refresh 🔄️", help="If you can't find your model press this button!"):
+    runs_df = get_wandb_runs_df()
+
 model_option_list = get_model_options(runs_df)
 model_option = st.selectbox("Select your model ✅", model_option_list)
 commit_id = st.write("commit id: ", get_commit_id(runs_df, model_option))
@@ -31,9 +48,12 @@ download_button = st.button("Download Artifact 🔍")
 send_weakness_button = st.button("Send Weakness to Database 🛫")
 
 if download_button:
-    get_artifact(artifact_option)
-    modelWeakness = ModelWeakness(artifact_option)
-    weakness_df, acc = modelWeakness.get_model_weakness()
+    # get_artifact(artifact_option)
+    # modelWeakness = ModelWeakness(artifact_option)
+    # weakness_df, acc = modelWeakness.get_model_weakness()
+    weakness_df = pd.read_pickle("./app/artifacts/"+ artifact_option + "_df.pkl")
+    acc = 0.99
+    
     category_fig = px.pie(
         weakness_df, values="correct_category_id", names="correct_category", title="Pie Chart of categories"
     )
