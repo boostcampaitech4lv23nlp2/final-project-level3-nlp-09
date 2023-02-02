@@ -135,6 +135,7 @@ class ModelWeakness:
     
     def get_model_weakness(self):
         dataset_size = len(self.weakness)
+        total = self.weakness.copy()
         self.weakness = self.weakness.loc[self.weakness.pred_texts != self.weakness.correct_texts]
         pred_category_ids = [self.food_to_category[food] for food in self.weakness["pred_texts"]]
         correct_category_ids = [self.food_to_category[food] for food in self.weakness["correct_texts"]]
@@ -144,8 +145,17 @@ class ModelWeakness:
         correct_category = [self.category_id_to_kor[int(x)] for x in correct_category_ids]
         self.weakness["pred_category"] = pred_category
         self.weakness["correct_category"] = correct_category
+        
+        total_pred_category_ids = [self.food_to_category[food] for food in total["pred_texts"]]
+        total_correct_category_ids = [self.food_to_category[food] for food in total["correct_texts"]]
+        total["pred_category_id"] = total_pred_category_ids
+        total["correct_category_id"] = total_correct_category_ids
+        total_pred_category = [self.category_id_to_kor[int(x)] for x in total_pred_category_ids]
+        total_correct_category = [self.category_id_to_kor[int(x)] for x in total_correct_category_ids]
+        total["pred_category"] = total_pred_category
+        total["correct_category"] = total_correct_category
 
-        return [self.weakness, self.acc, dataset_size]
+        return [total, self.weakness, self.acc]
 
     def get_food_to_category(self):
         with open(os.path.join("./data", "category_dict.json"), encoding="euc-kr") as f:

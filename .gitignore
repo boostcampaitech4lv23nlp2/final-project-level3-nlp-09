@@ -140,3 +140,4 @@ aihub_train.zip
 aihub_test.zip
 *.pt
 *.pkl
+/app/artifacts

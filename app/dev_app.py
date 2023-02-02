@@ -61,27 +61,35 @@ if download_button:
 if os.path.exists(artifact_path):
     with open(artifact_path, "rb") as f:
         pkl = pickle.load(f)
-        weakness_df, acc, dataset_size = pkl[0], pkl[1], pkl[2]
-    category_fig = px.pie(
-        weakness_df, values="correct_category_id", names="correct_category", title="Pie Chart of categories"
-    )
-    st.write(f"""
-             accuracy: {acc * 100:.3f}% \n
-             data tested: {dataset_size} images \n
-             incorrect predictions: {len(weakness_df)} predictions
-             """)
-    st.plotly_chart(category_fig)
+        total_df, weakness_df, acc = pkl[0], pkl[1], pkl[2]
     
-    df = weakness_df[["pred_texts", "correct_texts","pred_category", "correct_category"]]
-    gb = GridOptionsBuilder.from_dataframe(df)
+    weakness_df["same_group"] = weakness_df["pred_category_id"] == weakness_df["correct_category_id"]
+    st.write(f"""
+             accuracy: {acc * 100:.2f}% \n
+             데이터셋: {len(total_df)} \n
+             오답: {len(weakness_df)}/{len(total_df)} ({len(weakness_df)/len(total_df) * 100:.2f}%) \n
+             대분류 내 오답: {weakness_df["same_group"].sum()}/{len(weakness_df)} ({weakness_df["same_group"].sum()/len(weakness_df)*100:.2f}%) \n
+             대분류 외 오답: {len(weakness_df) - weakness_df["same_group"].sum()}/{len(weakness_df)} ({100 - weakness_df["same_group"].sum()/len(weakness_df)*100:.2f}%)
+             """)
+    category_fig1 = px.pie(
+        total_df, values="correct_category_id", names="correct_category", title="Pie Chart of Categories in Test Dataset"
+    )
+    st.plotly_chart(category_fig1)
+    category_fig2 = px.pie(
+        weakness_df, values="correct_category_id", names="correct_category", title="Pie Chart of Categories among Incorrect Test Dataset"
+    )
+    st.plotly_chart(category_fig2)
+    
+    df1 = weakness_df[["pred_texts", "correct_texts","pred_category", "correct_category", "same_group"]]
+    gb = GridOptionsBuilder.from_dataframe(df1)
     # gb.configure_pagination(paginationPageSize=20)
     gb.configure_selection('single', use_checkbox=False)
     gridOptions = gb.build()
 
     warnings.simplefilter(action="ignore", category=FutureWarning)
-    st.write("오답 노트")
+    st.write("대분류 묶음 오답 노트")
     grid_response = AgGrid(
-        df,
+        df1,
         gridOptions=gridOptions,
         data_return_mode='AS_INPUT', 
         update_mode='MODEL_CHANGED', # 'VALUE_CHANGED'
@@ -98,12 +106,41 @@ if os.path.exists(artifact_path):
     except:
         pass
     
+    food_to_count_dict = dict(total_df["pred_texts"].value_counts())
+    total_df["correct"] = total_df.pred_ids == total_df.correct_ids
+    total = total_df.groupby("pred_texts")["correct"].sum().reset_index()
+    total["total_guess"] = total["pred_texts"].apply(lambda x : food_to_count_dict[x])
+    total["corr_perc"] = total.apply(lambda x : x["correct"] / food_to_count_dict[x["pred_texts"]], axis=1)
+    
+    df2 = total
+    gb = GridOptionsBuilder.from_dataframe(df2)
+    # gb.configure_pagination(paginationPageSize=20)
+    gb.configure_selection('single', use_checkbox=False)
+    gridOptions = gb.build()
+
+    warnings.simplefilter(action="ignore", category=FutureWarning)
+    st.write("클래스 묶음 오답 노트")
+    grid_response = AgGrid(
+        df2,
+        gridOptions=gridOptions,
+        data_return_mode='AS_INPUT', 
+        update_mode='MODEL_CHANGED', # 'VALUE_CHANGED'
+        fit_columns_on_grid_load=True,
+        theme='alpine',
+        enable_enterprise_modules=True,
+        height=550, 
+        width='100%',
+        reload_data=False
+    )
+
+    
     # res = send_weakness(url, "POST", artifact_option, weakness_df)
     # st.write("response: ", res)
     
 if send_weakness_button:
     res = send_weakness(url, "POST", artifact_option, weakness_df)
     st.write("response: ", res)
+    
 
 # Sidebar
 
