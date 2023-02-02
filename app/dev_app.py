@@ -4,6 +4,8 @@ import sys
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import warnings
+from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -57,11 +59,30 @@ if download_button:
     )
     st.write(f"accuracy: {acc * 100:.3f}%")
     st.plotly_chart(category_fig)
-    st.dataframe(weakness_df[["pred_texts", "correct_texts","pred_category", "correct_category"]])
+    
+    df = weakness_df[["pred_texts", "correct_texts","pred_category", "correct_category"]]
+    gb = GridOptionsBuilder.from_dataframe(df)
+    # gb.configure_pagination(paginationPageSize=20)
+    gb.configure_selection('single', use_checkbox=False)
+    gridOptions = gb.build()
+
+    warnings.simplefilter(action="ignore", category=FutureWarning)
+    grid_response = AgGrid(
+        df,
+        gridOptions=gridOptions,
+        data_return_mode='AS_INPUT', 
+        update_mode='VALUE_CHANGED', #'MODEL_CHANGED', 
+        fit_columns_on_grid_load=True,
+        theme='alpine',
+        enable_enterprise_modules=True,
+        height=550, 
+        width='100%',
+        reload_data=False
+    )
 
     res = send_weakness(url, "POST", artifact_option, weakness_df)
     st.write("response: ", res)
-
+    
 if send_weakness_button:
     res = send_weakness(url, "POST", artifact_option, weakness_df)
     st.write("response: ", res)
