@@ -3,6 +3,7 @@ import json
 import os
 
 import pandas as pd
+import requests
 import streamlit as st
 import torch
 import wandb
@@ -23,6 +24,7 @@ class ModelWeakness:
         self.vision_cfg = self.configs["vision_cfg"]
         self.set_args()
         set_seed(self.args.seed)
+        self.food_to_category = self.get_food_to_category()
         if torch.cuda.is_available():
             # This enables tf32 on Ampere GPUs which is only 8% slower than
             # float16 and almost as accurate as float32
@@ -35,7 +37,7 @@ class ModelWeakness:
         self.tokenizer = self.get_tokenizer(self.tokens_path, self.configs)
         self.trainer = self.get_trainer(self.args, self.model, self.tokenizer, test_dataset=self.test_dataset)
 
-        self.weakness = self.trainer.inference(mode="test")
+        self.weakness, self.acc = self.trainer.inference(mode="test")
 
     def get_model_config(self):
         with open("src/model_configs/baseline.json") as f:
@@ -94,19 +96,15 @@ class ModelWeakness:
         return image_transform(vision_cfg["image_size"], is_train=True)
 
     def get_model(self, args, vision_cfg, text_cfg, artifact):
-        # TODO: wandb artifact로 바꾸기
         path = os.path.join("app/artifacts", artifact[: artifact.find(".pt") + 3])
-
         model = build_model(vision_cfg, text_cfg)
         checkpoint = torch.load(path, map_location="cpu")
         model.load_state_dict(checkpoint["state_dict"])
-        # if scaler is not None and 'scaler' in checkpoint:
-        #    scaler.load_state_dict(checkpoint['scaler'])
         print(f"=> from resuming checkpoint '{artifact}' ")
         return model
 
     def get_test_dataset(self, args, preprocess):
-        return FoodImageDataset(args, preprocess, mode="test", ratio=0.01)
+        return FoodImageDataset(args, preprocess, mode="test", ratio=0.001)
 
     def get_tokenizer(self, tokens_path, configs):
         return FoodTokenizer(tokens_path, configs=configs)
@@ -120,7 +118,25 @@ class ModelWeakness:
         return trainer
 
     def get_model_weakness(self):
-        return self.weakness
+        self.weakness = self.weakness.loc[self.weakness.pred_texts != self.weakness.correct_texts]
+        pred_category_ids = [self.food_to_category[food] for food in self.weakness["pred_texts"]]
+        correct_category_ids = [self.food_to_category[food] for food in self.weakness["correct_texts"]]
+        self.weakness["pred_category_id"] = pred_category_ids
+        self.weakness["correct_category_id"] = correct_category_ids
+
+        return self.weakness, self.acc
+
+    def get_food_to_category(self):
+        with open(os.path.join("./data", "category_dict.json"), encoding="euc-kr") as f:
+            category_to_food = json.load(f)
+
+        food_to_category = {}
+        for category_id in category_to_food:
+            food_list = category_to_food[category_id]
+            for food in food_list:
+                food_to_category[food] = category_id
+
+        return food_to_category
 
 
 def get_model_options(runs_df):
@@ -176,3 +192,39 @@ def get_artifact(artifact_name, entity: str = "ecl-mlstudy", project: str = "FOO
 def get_commit_id(runs_df, model_option):
     commit_id = runs_df.loc[runs_df["run_name"] == model_option]["commit_id"].iloc[0]
     return commit_id
+
+
+def send_weakness(url, method, artifact, weakness_df):
+    artifact = artifact[: artifact.find(".pt") + 3]
+    data = {}
+    data["model_name"] = artifact
+    data["errors"] = get_error_list(weakness_df)
+
+    try:
+        if method == "GET":
+            response = requests.get(url)
+        elif method == "POST":
+            response = requests.post(url, data=json.dumps(data))
+        print("response status %r" % response.status_code)
+        print("response text %r" % response.text)
+        print("response content%r" % response.content)
+        print("response url%r" % response.url)
+        return response
+    except Exception as ex:
+        print(ex)
+
+
+def get_error_list(df):
+    error_list = []
+    for correct_category, pred_category, correct_label, pred_label in zip(
+        df["correct_category_id"], df["pred_category_id"], df["correct_texts"], df["pred_texts"]
+    ):
+        error = {
+            "correct_category": correct_category,
+            "pred_category": pred_category,
+            "correct_label": correct_label,
+            "pred_label": pred_label,
+        }
+        error_list.append(error)
+
+    return error_list
