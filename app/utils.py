@@ -202,10 +202,10 @@ def get_wandb_runs_df(entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
     return runs_df
 
 def get_artifact(artifact_name, entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
-    api = wandb.Api()
-    artifact = api.artifact(entity + "/" + project + "/" + artifact_name)
-    artifact.download(root="app/artifacts")
-    return artifact_name
+    if not os.path.exists("app/artifacts/" + artifact_name[: artifact_name.find(".pt") + 3]):
+        api = wandb.Api()
+        artifact = api.artifact(entity + "/" + project + "/" + artifact_name)
+        artifact.download(root="app/artifacts")
 
 def get_commit_id(runs_df, model_option):
     commit_id = runs_df.loc[runs_df["run_name"] == model_option]["commit_id"].iloc[0]

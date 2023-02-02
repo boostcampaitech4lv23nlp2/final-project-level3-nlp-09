@@ -31,7 +31,7 @@ download_button = st.button("Download Artifact 🔍")
 send_weakness_button = st.button("Send Weakness to Database 🛫")
 
 if download_button:
-    artifact_path = get_artifact(artifact_option)
+    get_artifact(artifact_option)
     modelWeakness = ModelWeakness(artifact_option)
     weakness_df, acc = modelWeakness.get_model_weakness()
 
