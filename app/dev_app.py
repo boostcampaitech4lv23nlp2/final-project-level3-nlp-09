@@ -16,7 +16,6 @@ from utils import (
     get_wandb_runs_df,
     send_weakness,
 )
-
 st.title("📝 Model Analysis Tool")
 
 st.markdown("""
@@ -25,7 +24,6 @@ st.markdown("""
             - the pie chart shows the distribution of 대분류 of the test dataset
             - the table shows all the wrong predictions
             """)
-st.markdown("You can ")
 
 if os.path.exists("./app/runs_df.pkl"):
     runs_df = pd.read_pickle("./app/runs_df.pkl")
