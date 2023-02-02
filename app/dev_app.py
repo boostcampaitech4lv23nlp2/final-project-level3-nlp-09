@@ -18,6 +18,7 @@ from utils import (
     get_model_options,
     get_wandb_runs_df,
     send_weakness,
+    empty_cache
 )
 st.title("📝 Model Analysis Tool")
 
@@ -28,13 +29,20 @@ st.markdown("""
             - the table shows all the wrong predictions
             """)
 
-if os.path.exists("./app/runs_df.pkl"):
-    runs_df = pd.read_pickle("./app/runs_df.pkl")
+if os.path.exists("./app/artifacts/runs_df.pkl"):
+    runs_df = pd.read_pickle("./app/artifacts/runs_df.pkl")
 else:
     runs_df = get_wandb_runs_df()
+    runs_df.to_pickle("./app/artifacts/runs_df.pkl")
 
-if st.button("Refresh 🔄️", help="If you can't find your model press this button!"):
-    runs_df = get_wandb_runs_df()
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("Refresh 🔄️", help="If you can't find your model press this button!"):
+        runs_df = get_wandb_runs_df()
+with col2:
+    if st.button("Empty Cache 🗑️", help="clear all cache"):
+        empty_cache()
 
 model_option_list = get_model_options(runs_df)
 model_option = st.selectbox("Select your model ✅", model_option_list)

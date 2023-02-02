@@ -246,3 +246,9 @@ def get_error_list(df):
         error_list.append(error)
 
     return error_list
+
+def empty_cache():
+    folder = './app/artifacts'
+    for filename in os.listdir(folder):
+        f = os.path.join(folder, filename)
+        os.remove(f)
