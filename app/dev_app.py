@@ -1,6 +1,7 @@
 import os
 import sys
 
+import pickle
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -48,11 +49,17 @@ download_button = st.button("Download Artifact 🔍")
 send_weakness_button = st.button("Send Weakness to Database 🛫")
 
 if download_button:
-    # get_artifact(artifact_option)
-    # modelWeakness = ModelWeakness(artifact_option)
-    # weakness_df, acc = modelWeakness.get_model_weakness()
-    weakness_df = pd.read_pickle("./app/artifacts/"+ artifact_option + "_df.pkl")
-    acc = 0.99
+    df_path = "./app/artifacts/"+ artifact_option + ".pkl"
+    if not os.path.exists("./app/artifacts/"+ artifact_option + ".pkl"):
+        get_artifact(artifact_option)
+        modelWeakness = ModelWeakness(artifact_option)
+        weakness_df, acc = modelWeakness.get_model_weakness()
+        with open("./app/artifacts/"+ artifact_option + ".pkl", "wb") as f:
+            pickle.dump([weakness_df, acc], f)
+    else: 
+        with open("./app/artifacts/"+ artifact_option + ".pkl", "rb") as f:
+            pkl = pickle.load(f)
+            weakness_df, acc = pkl[0], pkl[1]
     
     category_fig = px.pie(
         weakness_df, values="correct_category_id", names="correct_category", title="Pie Chart of categories"
