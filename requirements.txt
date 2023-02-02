@@ -10,3 +10,4 @@ coverage==7.0.1
 streamlit==1.17.0
 streamlit-aggrid==0.3.3
 plotly-express==0.4.1
+requests==2.28.1
