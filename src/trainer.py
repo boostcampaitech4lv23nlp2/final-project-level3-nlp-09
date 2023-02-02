@@ -252,7 +252,7 @@ class Trainer(object):
             print(f"validation acc: {valid_acc}")
             metrics.update()
 
-            return df
+            return df, valid_acc
 
     def get_metrics(self, image_features, text_features, logit_scale):
         metrics = {}
