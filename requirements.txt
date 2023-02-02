@@ -7,3 +7,6 @@ wandb==0.13.7
 ftfy==6.1.1
 transformers==4.24.0
 coverage==7.0.1
+streamlit==1.17.0
+streamlit-aggrid==0.3.3
+plotly-express==0.4.1
