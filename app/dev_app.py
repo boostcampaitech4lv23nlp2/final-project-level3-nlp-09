@@ -17,9 +17,9 @@ from utils import (
     get_artifact_options,
     get_commit_id,
     get_model_options,
+    get_size_of_cache,
     get_wandb_runs_df,
     send_weakness,
-    get_size_of_cache,
 )
 
 st.title("📝 Model Analysis Tool")
