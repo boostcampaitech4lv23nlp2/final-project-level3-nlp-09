@@ -113,7 +113,7 @@ class ModelWeakness:
         return image_transform(vision_cfg["image_size"], is_train=True)
 
     def get_model(self, args, vision_cfg, text_cfg, artifact):
-        path = os.path.join("app/artifacts", artifact[: artifact.find(".pt") + 3])
+        path = os.path.join("app/data", artifact[: artifact.find(".pt") + 3])
         model = build_model(vision_cfg, text_cfg)
         checkpoint = torch.load(path, map_location="cpu")
         model.load_state_dict(checkpoint["state_dict"])
@@ -214,10 +214,10 @@ def get_wandb_runs_df(entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
 
 
 def get_artifact(artifact_name, entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
-    if not os.path.exists("app/artifacts/" + artifact_name[: artifact_name.find(".pt") + 3]):
+    if not os.path.exists("app/data/" + artifact_name[: artifact_name.find(".pt") + 3]):
         api = wandb.Api()
         artifact = api.artifact(entity + "/" + project + "/" + artifact_name)
-        artifact.download(root="app/artifacts")
+        artifact.download(root="app/data")
 
 
 def get_commit_id(runs_df, model_option):
@@ -262,7 +262,7 @@ def get_error_list(df):
 
 
 def empty_cache():
-    folder = "./app/artifacts"
+    folder = "./app/data"
     for filename in os.listdir(folder):
         f = os.path.join(folder, filename)
         os.remove(f)

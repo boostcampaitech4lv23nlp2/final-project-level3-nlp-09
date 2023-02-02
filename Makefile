@@ -51,4 +51,4 @@ clean-test:
 
 set-directory:
 	mkdir src/output
-	mkdir app/artifacts
+	mkdir app/data

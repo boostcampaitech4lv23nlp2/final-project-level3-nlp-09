@@ -26,17 +26,14 @@ st.title("📝 Model Analysis Tool")
 st.markdown(
     """
             This is a dashboard where you can analyize inference/zero-shot performance of any model that is saved in WandB.
-            What you can see:
-            - the pie chart shows the distribution of 대분류 of the test dataset
-            - the table shows all the wrong predictions
             """
 )
 
-if os.path.exists("./app/artifacts/runs_df.pkl"):
-    runs_df = pd.read_pickle("./app/artifacts/runs_df.pkl")
+if os.path.exists("./app/data/runs_df.pkl"):
+    runs_df = pd.read_pickle("./app/data/runs_df.pkl")
 else:
     runs_df = get_wandb_runs_df()
-    runs_df.to_pickle("./app/artifacts/runs_df.pkl")
+    runs_df.to_pickle("./app/data/runs_df.pkl")
 
 model_option_list = get_model_options(runs_df)
 model_option = st.selectbox("Select your model ✅", model_option_list)
@@ -44,7 +41,7 @@ commit_id = st.write("commit id: ", get_commit_id(runs_df, model_option))
 
 artifact_option_list = get_artifact_options(model_option, runs_df)
 artifact_option = st.selectbox("Select your model artifact ✅", artifact_option_list)
-artifact_path = "./app/artifacts/" + artifact_option + ".pkl"
+artifact_path = "./app/data/" + artifact_option + ".pkl"
 
 url = "https://kyc-system.mynetgear.com/result"
 
@@ -157,7 +154,7 @@ if send_weakness_button:
 
 size = 0
 # get size
-for path, dirs, files in os.walk("./app/artifacts"):
+for path, dirs, files in os.walk("./app/data"):
     for f in files:
         fp = os.path.join(path, f)
         size += os.path.getsize(fp)
