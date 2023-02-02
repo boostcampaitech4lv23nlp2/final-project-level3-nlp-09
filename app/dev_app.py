@@ -93,9 +93,11 @@ if os.path.exists(artifact_path):
         width='100%',
         reload_data=False
     )
+    row_select = dict(grid_response)["selected_rows"][0]
+    st.write(row_select)
     
-    res = send_weakness(url, "POST", artifact_option, weakness_df)
-    st.write("response: ", res)
+    # res = send_weakness(url, "POST", artifact_option, weakness_df)
+    # st.write("response: ", res)
     
 if send_weakness_button:
     res = send_weakness(url, "POST", artifact_option, weakness_df)
