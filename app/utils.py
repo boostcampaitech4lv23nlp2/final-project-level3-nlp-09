@@ -17,8 +17,9 @@ from src.utils import set_seed
 
 
 class ModelWeakness:
-    def __init__(self, artifact):
+    def __init__(self, artifact, dataset_ratio):
         self.artifact = artifact
+        self.dataset_ratio = dataset_ratio
         self.configs = self.get_model_config()
         self.text_cfg = self.configs["text_cfg"]
         self.vision_cfg = self.configs["vision_cfg"]
@@ -121,7 +122,7 @@ class ModelWeakness:
         return model
 
     def get_test_dataset(self, args, preprocess):
-        return FoodImageDataset(args, preprocess, mode="test", ratio=0.001)
+        return FoodImageDataset(args, preprocess, mode="test", ratio=self.dataset_ratio)
 
     def get_tokenizer(self, tokens_path, configs):
         return FoodTokenizer(tokens_path, configs=configs)
@@ -266,3 +267,14 @@ def empty_cache():
     for filename in os.listdir(folder):
         f = os.path.join(folder, filename)
         os.remove(f)
+
+
+def get_size_of_cache():
+    size = 0
+    # get size
+    for path, dirs, files in os.walk("./app/data"):
+        for f in files:
+            fp = os.path.join(path, f)
+            size += os.path.getsize(fp)
+    size *= 1 / 1073741824
+    return size

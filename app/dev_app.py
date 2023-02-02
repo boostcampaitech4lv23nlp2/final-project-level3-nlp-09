@@ -19,6 +19,7 @@ from utils import (
     get_model_options,
     get_wandb_runs_df,
     send_weakness,
+    get_size_of_cache,
 )
 
 st.title("📝 Model Analysis Tool")
@@ -41,7 +42,18 @@ commit_id = st.write("commit id: ", get_commit_id(runs_df, model_option))
 
 artifact_option_list = get_artifact_options(model_option, runs_df)
 artifact_option = st.selectbox("Select your model artifact ✅", artifact_option_list)
-artifact_path = "./app/data/" + artifact_option + ".pkl"
+
+number_of_test_data = st.number_input(
+    "How many test data do you want to inference?", min_value=1, max_value=202398, value=202, step=1
+)
+if number_of_test_data:
+    dataset_ratio = number_of_test_data / 202398
+    st.write(f"Inference will take approx. {number_of_test_data/1050:.2f} mins")
+
+artifact_path = artifact_path = "./app/data/" + artifact_option[: artifact_option.find(".pt") + 3] + ".pkl"
+pkl_path = (
+    "./app/data/" + artifact_option[: artifact_option.find(".pt") + 3] + "_" + str(int(number_of_test_data)) + ".pkl"
+)
 
 url = "https://kyc-system.mynetgear.com/result"
 
@@ -54,12 +66,13 @@ with col2:
 if download_button:
     if not os.path.exists(artifact_path):
         get_artifact(artifact_option)
-        modelWeakness = ModelWeakness(artifact_option)
-        with open(artifact_path, "wb") as f:
+    if not os.path.exists(pkl_path):
+        modelWeakness = ModelWeakness(artifact_option, dataset_ratio=dataset_ratio)
+        with open(pkl_path, "wb") as f:
             pickle.dump(modelWeakness.get_model_weakness(), f)
 
-if os.path.exists(artifact_path):
-    with open(artifact_path, "rb") as f:
+if os.path.exists(pkl_path):
+    with open(pkl_path, "rb") as f:
         pkl = pickle.load(f)
         total_df, weakness_df, acc = pkl[0], pkl[1], pkl[2]
 
@@ -152,16 +165,8 @@ if send_weakness_button:
 
 # Sidebar
 
-size = 0
-# get size
-for path, dirs, files in os.walk("./app/data"):
-    for f in files:
-        fp = os.path.join(path, f)
-        size += os.path.getsize(fp)
-
-
 with st.sidebar:
     if st.button("Refresh 🔄️", help="If you can't find your model press this button!"):
         runs_df = get_wandb_runs_df()
-    if st.button("Empty Cache 🗑️", help=f"clear all cache: {size * (1/1073741824):.3f}GB"):
+    if st.button("Empty Cache 🗑️", help=f"clear all cache: {get_size_of_cache():.3f}GB"):
         empty_cache()
