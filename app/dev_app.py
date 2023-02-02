@@ -50,25 +50,24 @@ commit_id = st.write("commit id: ", get_commit_id(runs_df, model_option))
 
 artifact_option_list = get_artifact_options(model_option, runs_df)
 artifact_option = st.selectbox("Select your model artifact ✅", artifact_option_list)
-weakness_df = pd.DataFrame()
+artifact_path = "./app/artifacts/"+ artifact_option + ".pkl"
 
 url = "https://kyc-system.mynetgear.com/result"
 download_button = st.button("Download Artifact 🔍")
 send_weakness_button = st.button("Send Weakness to Database 🛫")
 
 if download_button:
-    df_path = "./app/artifacts/"+ artifact_option + ".pkl"
-    if not os.path.exists("./app/artifacts/"+ artifact_option + ".pkl"):
+    if not os.path.exists(artifact_path):
         get_artifact(artifact_option)
         modelWeakness = ModelWeakness(artifact_option)
         weakness_df, acc = modelWeakness.get_model_weakness()
-        with open("./app/artifacts/"+ artifact_option + ".pkl", "wb") as f:
+        with open(artifact_path, "wb") as f:
             pickle.dump([weakness_df, acc], f)
-    else: 
-        with open("./app/artifacts/"+ artifact_option + ".pkl", "rb") as f:
-            pkl = pickle.load(f)
-            weakness_df, acc = pkl[0], pkl[1]
-    
+
+if os.path.exists(artifact_path):
+    with open(artifact_path, "rb") as f:
+        pkl = pickle.load(f)
+        weakness_df, acc = pkl[0], pkl[1]
     category_fig = px.pie(
         weakness_df, values="correct_category_id", names="correct_category", title="Pie Chart of categories"
     )
@@ -86,7 +85,7 @@ if download_button:
         df,
         gridOptions=gridOptions,
         data_return_mode='AS_INPUT', 
-        update_mode='VALUE_CHANGED', #'MODEL_CHANGED', 
+        update_mode='MODEL_CHANGED', # 'VALUE_CHANGED'
         fit_columns_on_grid_load=True,
         theme='alpine',
         enable_enterprise_modules=True,
@@ -94,7 +93,7 @@ if download_button:
         width='100%',
         reload_data=False
     )
-
+    
     res = send_weakness(url, "POST", artifact_option, weakness_df)
     st.write("response: ", res)
     
