@@ -17,8 +17,9 @@ from src.utils import set_seed
 
 
 class ModelWeakness:
-    def __init__(self, artifact):
+    def __init__(self, artifact, dataset_ratio):
         self.artifact = artifact
+        self.dataset_ratio = dataset_ratio
         self.configs = self.get_model_config()
         self.text_cfg = self.configs["text_cfg"]
         self.vision_cfg = self.configs["vision_cfg"]
@@ -36,7 +37,24 @@ class ModelWeakness:
         self.tokens_path = "./src/model_configs/tokens_by_length.json"
         self.tokenizer = self.get_tokenizer(self.tokens_path, self.configs)
         self.trainer = self.get_trainer(self.args, self.model, self.tokenizer, test_dataset=self.test_dataset)
-
+        self.category_id_to_kor = {
+            1: "밥류",
+            2: "면, 만두류",
+            3: "죽, 스프류",
+            4: "국, 탕, 찌개류",
+            5: "찜류",
+            6: "구이류",
+            7: "전, 부침류",
+            8: "볶음류",
+            9: "조림류",
+            10: "튀김류",
+            11: "나물, 무침류",
+            12: "김치류",
+            13: "장아찌, 젓갈류",
+            14: "회류",
+            15: "떡류",
+            16: "한과류",
+        }
         self.weakness, self.acc = self.trainer.inference(mode="test")
 
     def get_model_config(self):
@@ -96,7 +114,7 @@ class ModelWeakness:
         return image_transform(vision_cfg["image_size"], is_train=True)
 
     def get_model(self, args, vision_cfg, text_cfg, artifact):
-        path = os.path.join("app/artifacts", artifact[: artifact.find(".pt") + 3])
+        path = os.path.join("app/data", artifact[: artifact.find(".pt") + 3])
         model = build_model(vision_cfg, text_cfg)
         checkpoint = torch.load(path, map_location="cpu")
         model.load_state_dict(checkpoint["state_dict"])
@@ -104,7 +122,7 @@ class ModelWeakness:
         return model
 
     def get_test_dataset(self, args, preprocess):
-        return FoodImageDataset(args, preprocess, mode="test", ratio=0.001)
+        return FoodImageDataset(args, preprocess, mode="test", ratio=self.dataset_ratio)
 
     def get_tokenizer(self, tokens_path, configs):
         return FoodTokenizer(tokens_path, configs=configs)
@@ -118,13 +136,27 @@ class ModelWeakness:
         return trainer
 
     def get_model_weakness(self):
+        total = self.weakness.copy()
         self.weakness = self.weakness.loc[self.weakness.pred_texts != self.weakness.correct_texts]
         pred_category_ids = [self.food_to_category[food] for food in self.weakness["pred_texts"]]
         correct_category_ids = [self.food_to_category[food] for food in self.weakness["correct_texts"]]
         self.weakness["pred_category_id"] = pred_category_ids
         self.weakness["correct_category_id"] = correct_category_ids
+        pred_category = [self.category_id_to_kor[int(x)] for x in pred_category_ids]
+        correct_category = [self.category_id_to_kor[int(x)] for x in correct_category_ids]
+        self.weakness["pred_category"] = pred_category
+        self.weakness["correct_category"] = correct_category
 
-        return self.weakness, self.acc
+        total_pred_category_ids = [self.food_to_category[food] for food in total["pred_texts"]]
+        total_correct_category_ids = [self.food_to_category[food] for food in total["correct_texts"]]
+        total["pred_category_id"] = total_pred_category_ids
+        total["correct_category_id"] = total_correct_category_ids
+        total_pred_category = [self.category_id_to_kor[int(x)] for x in total_pred_category_ids]
+        total_correct_category = [self.category_id_to_kor[int(x)] for x in total_correct_category_ids]
+        total["pred_category"] = total_pred_category
+        total["correct_category"] = total_correct_category
+
+        return [total, self.weakness, self.acc]
 
     def get_food_to_category(self):
         with open(os.path.join("./data", "category_dict.json"), encoding="euc-kr") as f:
@@ -183,10 +215,10 @@ def get_wandb_runs_df(entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
 
 
 def get_artifact(artifact_name, entity: str = "ecl-mlstudy", project: str = "FOOD CLIP"):
-    api = wandb.Api()
-    artifact = api.artifact(entity + "/" + project + "/" + artifact_name)
-    artifact.download(root="app/artifacts")
-    return artifact_name
+    if not os.path.exists("app/data/" + artifact_name[: artifact_name.find(".pt") + 3]):
+        api = wandb.Api()
+        artifact = api.artifact(entity + "/" + project + "/" + artifact_name)
+        artifact.download(root="app/data")
 
 
 def get_commit_id(runs_df, model_option):
@@ -228,3 +260,21 @@ def get_error_list(df):
         error_list.append(error)
 
     return error_list
+
+
+def empty_cache():
+    folder = "./app/data"
+    for filename in os.listdir(folder):
+        f = os.path.join(folder, filename)
+        os.remove(f)
+
+
+def get_size_of_cache():
+    size = 0
+    # get size
+    for path, dirs, files in os.walk("./app/data"):
+        for f in files:
+            fp = os.path.join(path, f)
+            size += os.path.getsize(fp)
+    size *= 1 / 1073741824
+    return size

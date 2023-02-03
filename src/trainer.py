@@ -243,8 +243,8 @@ class Trainer(object):
             df = pd.DataFrame(
                 {
                     "pred_texts": pred_texts,
-                    "pred_ids": pred_ids,
                     "correct_texts": correct_texts,
+                    "pred_ids": pred_ids,
                     "correct_ids": correct_ids,
                 }
             )
