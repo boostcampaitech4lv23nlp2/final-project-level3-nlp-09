@@ -136,6 +136,7 @@ class ModelWeakness:
         return trainer
 
     def get_model_weakness(self):
+        self.weakness["item_id"] = self.weakness["item_id"].apply(lambda x: x.tolist())
         total = self.weakness.copy()
         self.weakness = self.weakness.loc[self.weakness.pred_texts != self.weakness.correct_texts]
         pred_category_ids = [self.food_to_category[food] for food in self.weakness["pred_texts"]]
@@ -248,10 +249,11 @@ def send_weakness(url, method, artifact, weakness_df):
 
 def get_error_list(df):
     error_list = []
-    for correct_category, pred_category, correct_label, pred_label in zip(
-        df["correct_category_id"], df["pred_category_id"], df["correct_texts"], df["pred_texts"]
+    for item_id, correct_category, pred_category, correct_label, pred_label in zip(
+        df["item_id"], df["correct_category_id"], df["pred_category_id"], df["correct_texts"], df["pred_texts"]
     ):
         error = {
+            "item_id": item_id,
             "correct_category": correct_category,
             "pred_category": pred_category,
             "correct_label": correct_label,

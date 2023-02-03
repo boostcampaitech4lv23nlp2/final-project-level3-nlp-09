@@ -107,8 +107,7 @@ if os.path.exists(pkl_path):
         title="Pie Chart of Categories among Incorrect Test Dataset",
     )
     st.plotly_chart(category_fig2)
-
-    df1 = weakness_df[["pred_texts", "correct_texts", "pred_category", "correct_category", "same_category"]]
+    df1 = weakness_df[["item_id", "pred_texts", "correct_texts", "pred_category", "correct_category", "same_category"]]
     gb = GridOptionsBuilder.from_dataframe(df1)
     # gb.configure_pagination(paginationPageSize=20)
     gb.configure_selection("single", use_checkbox=False)

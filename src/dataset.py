@@ -68,4 +68,5 @@ class FoodImageDataset(Dataset):
         file_path = os.path.join(self.dataset_path, self.dataset_mode, file_name)
         image = Image.open(file_path)
         image = self.transforms(image)
-        return text, image
+        item_id = self.data[idx]["id"]
+        return text, image, item_id

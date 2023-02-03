@@ -79,7 +79,7 @@ class Trainer(object):
 
             pbar = tqdm(train_dataloader, total=len(train_dataloader), leave=True)
 
-            for texts, images in pbar:
+            for texts, images, _ in pbar:
                 self.model.train()
                 optimizer.zero_grad()
                 with autocast():
@@ -154,7 +154,7 @@ class Trainer(object):
         tokenized_food_labels = self.tokenizer(self.food_labels).to(self.device)
 
         with torch.no_grad():
-            for texts, images in pbar:
+            for texts, images, _ in pbar:
                 images = images.to(self.device, dtype=cast_dtype)
                 tokenized_texts = self.tokenizer(texts).to(self.device)
                 with autocast():
@@ -218,9 +218,10 @@ class Trainer(object):
         pred_ids = []
         correct_texts = []
         correct_ids = []
+        food_ids = []
 
         with torch.no_grad():
-            for texts, images in pbar:
+            for texts, images, item_ids in pbar:
                 images = images.to(self.device, dtype=cast_dtype)
                 org_texts_id = self.text_to_id_dict[list(texts)[0]]
                 texts = self.tokenizer(self.labels).to(self.device)
@@ -239,9 +240,12 @@ class Trainer(object):
                 pred_ids.append(pred_text_id)
                 correct_texts.append(self.id_to_text_dict[org_texts_id])
                 correct_ids.append(org_texts_id)
+                food_ids.extend(item_ids)
+
             valid_acc = correct_num / len(eval_dataloader)
             df = pd.DataFrame(
                 {
+                    "item_id": food_ids,
                     "pred_texts": pred_texts,
                     "correct_texts": correct_texts,
                     "pred_ids": pred_ids,
@@ -322,7 +326,7 @@ class HardNegativeTrainer(Trainer):
 
             pbar = tqdm(train_dataloader, total=len(train_dataloader) * 3, leave=True)
 
-            for texts, images in pbar:
+            for texts, images, _ in pbar:
                 outputs_texts = []
                 outputs_images = []
                 self.model.train()
