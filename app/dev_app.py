@@ -2,10 +2,13 @@ import os
 import pickle
 import sys
 import warnings
+from os import listdir
+from os.path import isfile, join
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from PIL import Image
 from st_aggrid import AgGrid, GridOptionsBuilder
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
@@ -22,13 +25,24 @@ from utils import (
     send_weakness,
 )
 
-st.title("📝 Model Analysis Tool")
+st.set_page_config(
+    page_title="📝 Model Analysis Tool", page_icon=None, layout="centered", initial_sidebar_state="auto", menu_items=None
+)
 
 st.markdown(
     """
             This is a dashboard where you can analyize inference/zero-shot performance of any model that is saved in WandB.
             """
 )
+
+test_path = "./data/test"
+test_data_pkl_path = "./app/data/test_data.pkl"
+if os.path.exists(test_data_pkl_path):
+    test_file_list = pd.read_pickle(test_data_pkl_path)
+else:
+    test_file_list = [f for f in listdir(test_path) if isfile(join(test_path, f))]
+    with open(test_data_pkl_path, "wb") as f:
+        pickle.dump(test_file_list, f)
 
 if os.path.exists("./app/data/runs_df.pkl"):
     runs_df = pd.read_pickle("./app/data/runs_df.pkl")
@@ -127,11 +141,24 @@ if os.path.exists(pkl_path):
         width="100%",
         reload_data=False,
     )
-    try:
-        row_select = dict(grid_response)["selected_rows"][0]
-        st.write(row_select)
-    except IndexError:
-        st.write("no row selected")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        try:
+            pred_food = dict(grid_response)["selected_rows"][0]["pred_texts"]
+            image_name = next(x for x in test_file_list if pred_food in x)
+            with Image.open(test_path + "/" + image_name) as f:
+                st.image(f, caption=f"Predicted : {pred_food}")
+        except IndexError:
+            pass
+    with col2:
+        try:
+            correct_food = dict(grid_response)["selected_rows"][0]["correct_texts"]
+            image_name = next(x for x in test_file_list if correct_food in x)
+            with Image.open(test_path + "/" + image_name) as f:
+                st.image(f, caption=f"Ground Truth : {correct_food}")
+        except IndexError:
+            pass
 
     df2 = total
     gb = GridOptionsBuilder.from_dataframe(df2)
@@ -153,9 +180,15 @@ if os.path.exists(pkl_path):
         width="100%",
         reload_data=False,
     )
-
-    # res = send_weakness(url, "POST", artifact_option, weakness_df)
-    # st.write("response: ", res)
+    col1, col2 = st.columns(2)
+    with col1:
+        try:
+            pred_food = dict(grid_response)["selected_rows"][0]["pred_texts"]
+            image_name = next(x for x in test_file_list if pred_food in x)
+            with Image.open(test_path + "/" + image_name) as f:
+                st.image(f, caption=f"Predicted : {pred_food}")
+        except IndexError:
+            pass
 
 if send_weakness_button:
     res = send_weakness(url, "POST", artifact_option, weakness_df)
