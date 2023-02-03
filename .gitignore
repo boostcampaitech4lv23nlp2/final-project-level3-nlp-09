@@ -141,3 +141,4 @@ aihub_test.zip
 *.pt
 *.pkl
 /app/artifacts
+/app/data
