@@ -25,9 +25,9 @@ from utils import (
     send_weakness,
 )
 
-st.set_page_config(
-    page_title="📝 Model Analysis Tool", page_icon=None, layout="centered", initial_sidebar_state="auto", menu_items=None
-)
+st.set_page_config(page_title=None, page_icon=None, layout="wide", initial_sidebar_state="auto", menu_items=None)
+
+st.title("📝 Model Analysis Tool")
 
 st.markdown(
     """
@@ -71,7 +71,7 @@ pkl_path = (
 
 url = "https://kyc-system.mynetgear.com/result"
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     download_button = st.button("Download Artifact 🔍")
 with col2:
@@ -107,20 +107,29 @@ if os.path.exists(pkl_path):
              대분류 외 오답: {len(weakness_df) - weakness_df["same_category"].sum()}/{len(weakness_df)} ({100 - weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%) \n
              """
     )
-    category_fig1 = px.pie(
-        total_df,
-        values="correct_category_id",
-        names="correct_category",
-        title="Pie Chart of Categories in Test Dataset",
-    )
-    st.plotly_chart(category_fig1)
-    category_fig2 = px.pie(
-        weakness_df,
-        values="correct_category_id",
-        names="correct_category",
-        title="Pie Chart of Categories among Incorrect Test Dataset",
-    )
-    st.plotly_chart(category_fig2)
+
+    col1, col2 = st.columns(2)
+    with col2:
+        category_fig1 = px.pie(
+            total_df,
+            values="correct_category_id",
+            names="correct_category",
+            title="Pie Chart of Categories in Test Dataset",
+        )
+
+        st.plotly_chart(category_fig1)
+
+    with col1:
+
+        category_fig2 = px.pie(
+            weakness_df,
+            values="correct_category_id",
+            names="correct_category",
+            title="Pie Chart of Categories among Incorrect Test Dataset",
+        )
+        category_fig2.update_layout(showlegend=False)
+        st.plotly_chart(category_fig2)
+
     df1 = weakness_df[["item_id", "pred_texts", "correct_texts", "pred_category", "correct_category", "same_category"]]
     gb = GridOptionsBuilder.from_dataframe(df1)
     # gb.configure_pagination(paginationPageSize=20)
@@ -148,7 +157,7 @@ if os.path.exists(pkl_path):
             pred_food = dict(grid_response)["selected_rows"][0]["pred_texts"]
             image_name = next(x for x in test_file_list if pred_food in x)
             with Image.open(test_path + "/" + image_name) as f:
-                st.image(f, caption=f"Predicted : {pred_food}")
+                st.image(f, width=400, caption=f"Predicted : {pred_food}")
         except IndexError:
             pass
     with col2:
@@ -156,7 +165,7 @@ if os.path.exists(pkl_path):
             correct_food = dict(grid_response)["selected_rows"][0]["correct_texts"]
             image_name = next(x for x in test_file_list if correct_food in x)
             with Image.open(test_path + "/" + image_name) as f:
-                st.image(f, caption=f"Ground Truth : {correct_food}")
+                st.image(f, width=400, caption=f"Ground Truth : {correct_food}")
         except IndexError:
             pass
 
@@ -186,7 +195,7 @@ if os.path.exists(pkl_path):
             pred_food = dict(grid_response)["selected_rows"][0]["pred_texts"]
             image_name = next(x for x in test_file_list if pred_food in x)
             with Image.open(test_path + "/" + image_name) as f:
-                st.image(f, caption=f"Predicted : {pred_food}")
+                st.image(f, width=400, caption=f"Predicted : {pred_food}")
         except IndexError:
             pass
 
