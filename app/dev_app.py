@@ -109,7 +109,7 @@ if os.path.exists(pkl_path):
     )
 
     col1, col2 = st.columns(2)
-    with col2:
+    with col1:
         category_fig1 = px.pie(
             total_df,
             values="correct_category_id",
@@ -119,7 +119,7 @@ if os.path.exists(pkl_path):
 
         st.plotly_chart(category_fig1)
 
-    with col1:
+    with col2:
 
         category_fig2 = px.pie(
             weakness_df,
@@ -127,7 +127,7 @@ if os.path.exists(pkl_path):
             names="correct_category",
             title="Pie Chart of Categories among Incorrect Test Dataset",
         )
-        category_fig2.update_layout(showlegend=False)
+
         st.plotly_chart(category_fig2)
 
     df1 = weakness_df[["item_id", "pred_texts", "correct_texts", "pred_category", "correct_category", "same_category"]]
