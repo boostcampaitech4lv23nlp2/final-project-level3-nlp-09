@@ -78,7 +78,9 @@ col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     download_button = st.button("Download Artifact 🔍")
 with col2:
-    send_weakness_button = st.button("Send to Database 🛫")
+    embed_space_button = st.button("Show embedding space of model 🖌")
+with col3:
+    send_weakness_button = st.button("Send Weakness to Database 🛫")
 
 if download_button:
     if not os.path.exists(artifact_path):
@@ -156,7 +158,7 @@ if os.path.exists(pkl_path):
         data_return_mode="AS_INPUT",
         update_mode="MODEL_CHANGED",  # 'VALUE_CHANGED'
         fit_columns_on_grid_load=True,
-        theme="alpine",
+        theme="material",
         enable_enterprise_modules=True,
         height=550,
         width="100%",
@@ -195,7 +197,7 @@ if os.path.exists(pkl_path):
         data_return_mode="AS_INPUT",
         update_mode="MODEL_CHANGED",  # 'VALUE_CHANGED'
         fit_columns_on_grid_load=True,
-        theme="alpine",
+        theme="material",
         enable_enterprise_modules=True,
         height=550,
         width="100%",
@@ -215,6 +217,15 @@ if send_weakness_button:
     res = send_weakness(url, "POST", artifact_option, weakness_df)
     st.write("response: ", res)
 
+if embed_space_button:
+    # TODO: 실제 임베딩 벡터로 임베딩 스페이스 그리기 (텍스트, 이미지 둘다)
+    image_embed_space = Image.open("app/data/image_embed_space_dummy.png")
+    text_embed_space = Image.open("app/data/text_embed_space_dummy.png")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image(image_embed_space, caption="Image embedding space")
+    with col2:
+        st.image(image_embed_space, caption="Text embedding space")
 
 # Sidebar
 
