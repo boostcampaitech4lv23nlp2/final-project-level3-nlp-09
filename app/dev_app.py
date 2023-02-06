@@ -51,18 +51,21 @@ else:
     runs_df.to_pickle("./app/data/runs_df.pkl")
 
 model_option_list = get_model_options(runs_df)
-model_option = st.selectbox("Select your model ✅", model_option_list)
-commit_id = st.write("commit id: ", get_commit_id(runs_df, model_option))
 
-artifact_option_list = get_artifact_options(model_option, runs_df)
-artifact_option = st.selectbox("Select your model artifact ✅", artifact_option_list)
+col1, col2 = st.columns(2)
+with col1:
+    model_option = st.selectbox("Select your model ✅", model_option_list)
+    st.caption(f"commit id: {get_commit_id(runs_df, model_option)}")
+    artifact_option_list = get_artifact_options(model_option, runs_df)
+with col2:
+    artifact_option = st.selectbox("Select your model artifact ✅", artifact_option_list)
 
 number_of_test_data = st.number_input(
     "How many test data do you want to inference?", min_value=1, max_value=202398, value=202, step=1
 )
 if number_of_test_data:
     dataset_ratio = number_of_test_data / 202398
-    st.write(f"Inference will take approx. {number_of_test_data/1050:.2f} mins")
+    st.caption(f"Inference will take approx. {number_of_test_data/1050:.2f} mins")
 
 artifact_path = artifact_path = "./app/data/" + artifact_option[: artifact_option.find(".pt") + 3] + ".pkl"
 pkl_path = (
@@ -75,7 +78,7 @@ col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     download_button = st.button("Download Artifact 🔍")
 with col2:
-    send_weakness_button = st.button("Send Weakness to Database 🛫")
+    send_weakness_button = st.button("Send to Database 🛫")
 
 if download_button:
     if not os.path.exists(artifact_path):
@@ -97,16 +100,25 @@ if os.path.exists(pkl_path):
     total["corr_perc"] = total.apply(lambda x: x["correct"] / food_to_count_dict[x["pred_texts"]], axis=1)
 
     weakness_df["same_category"] = weakness_df["pred_category_id"] == weakness_df["correct_category_id"]
-    st.write(
-        f"""
-             accuracy: {acc * 100:.2f}% \n
-             클래스 평균 acc.: {total["corr_perc"].sum()/len(total) * 100:.2f}% \n
-             데이터셋: {len(total_df)} \n
-             오답: {len(weakness_df)}/{len(total_df)} ({len(weakness_df)/len(total_df) * 100:.2f}%) \n
-             대분류 내 오답: {weakness_df["same_category"].sum()}/{len(weakness_df)} ({weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%) \n
-             대분류 외 오답: {len(weakness_df) - weakness_df["same_category"].sum()}/{len(weakness_df)} ({100 - weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%) \n
-             """
-    )
+    col1, col2, col3, col4 = st.columns(4)
+
+    # 클래스 평균 acc.: {total["corr_perc"].sum()/len(total) * 100:.2f}% \n
+    # 데이터셋: {len(total_df)}
+
+    with col1:
+        st.write(
+            f"""
+                 accuracy: {acc * 100:.2f}% \n
+                 오답: {len(weakness_df)}/{len(total_df)} ({len(weakness_df)/len(total_df) * 100:.2f}%)
+                 """
+        )
+    with col2:
+        st.write(
+            f"""
+                대분류 내 오답: {weakness_df["same_category"].sum()}/{len(weakness_df)} ({weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%) \n
+                대분류 외 오답: {len(weakness_df) - weakness_df["same_category"].sum()}/{len(weakness_df)} ({100 - weakness_df["same_category"].sum()/len(weakness_df)*100:.2f}%)
+            """
+        )
 
     col1, col2 = st.columns(2)
     with col1:
