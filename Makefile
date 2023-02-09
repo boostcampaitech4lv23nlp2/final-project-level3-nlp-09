@@ -51,3 +51,4 @@ clean-test:
 
 set-directory:
 	mkdir src/output
+	mkdir app/data
