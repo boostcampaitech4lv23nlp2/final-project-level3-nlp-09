@@ -138,3 +138,7 @@ test.ipynb
 /experiments
 aihub_train.zip
 aihub_test.zip
+*.pt
+*.pkl
+/app/artifacts
+/app/data
